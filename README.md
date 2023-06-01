@@ -1,6 +1,6 @@
 # ghost
 
-A CLI tool (or ghost) that intelligently scaffolds a GitHub Action workflow based on your local application stack, using Azure AI.
+A CLI ghost that intelligently scaffolds a GitHub Action workflow based on your local application stack, using OpenAI.
 
 - no .github/workflow dir?
     - ghost runs on the cwd
