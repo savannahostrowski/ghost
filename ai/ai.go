@@ -15,7 +15,7 @@ func ChatGPTRequest(files []string) {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	c := openai.NewClient(apiKey)
 	ctx := context.Background()
-	prompt := fmt.Sprintf("Use the following files to tell me what languages are being used in this project (valid languages are Python, TypeScript, JavaScript, .NET, C# or Java). Don't list the files: %v", files)
+	prompt := fmt.Sprintf("Use the following files to tell me what languages are being used in this project: %v", files)
 	// prompt := fmt.Sprintf("Give me a GitHub Action workflow for an application with these files. I want to test the application, lint the code and deploy on Azure: %v", files)
 	// prompt := fmt.Sprintf("What Azure services should I use for this project: %v", files)
 

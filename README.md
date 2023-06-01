@@ -19,3 +19,12 @@ A CLI ghost that intelligently scaffolds a GitHub Action workflow based on your 
 
 - vscode extension
     - surface gesture via command palette?
+
+
+    - blurb about what will happen:
+        - cwd
+        - gh url
+    - language detection (automatic)
+    - prompt: what version of these languages are you using?
+    - prompt = "tell me more about your project and things you'd like to do in your CI pipeline"
+    - w
