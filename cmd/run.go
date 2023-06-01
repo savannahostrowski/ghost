@@ -19,7 +19,7 @@ var runCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		files := getFilesInCurrentDirAndSubDirs()
-		ai.chatGPTRequest(files)
+		ai.ChatGPTRequest(files)
 
 	},
 }
