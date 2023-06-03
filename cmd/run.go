@@ -19,7 +19,7 @@ import (
 type model struct {
 	spinner           spinner.Model
 	isLoadingResponse bool
-	gptResponse       string
+	detectedLanguages      string
 	choice            string
 	quitting          bool
 	err               error
@@ -31,7 +31,6 @@ const (
 )
 
 var (
-	titleStyle     = lipgloss.NewStyle().MarginLeft(2)
 	gptResultStyle = lipgloss.NewStyle().Foreground(hotPink)
 	itemStyle      = lipgloss.NewStyle().PaddingLeft(2)
 	selectedStyle  = lipgloss.NewStyle().PaddingLeft(2).Foreground(hotPink)
@@ -49,12 +48,11 @@ var runCmd = &cobra.Command{
 			spinner:           s,
 			isLoadingResponse: false,
 			choice:            "yes",
-			gptResponse:       "",
+			detectedLanguages:       "",
 			quitting:          false,
 			err:               nil,
 		}
 
-		renderWelcome(m)
 		p := tea.NewProgram(m)
 		if _, err := p.Run(); err != nil {
 			log.Fatal("Error running program: ", err)
@@ -94,12 +92,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Send those file names to the model for language detection
 		prompt := fmt.Sprintf("Use the following files to tell me what languages are being used in this project. Return a comma-separated list with just the language names: %v", files)
-		response, err := chatGPTRequest(files, prompt, m)
+		response, err := chatGPTRequest(prompt)
 
 		if err != nil {
 			return m, tea.Quit
 		}
-		m.gptResponse = response
+		m.detectedLanguages = response
 		m.isLoadingResponse = false
 
 		return m, cmd
@@ -114,11 +112,11 @@ func (m model) View() string {
 	}
 
 	// Ghost has detected languages in the codebase and is asking for confirmation
-	if len(m.gptResponse) != 0 {
+	if len(m.detectedLanguages) != 0 {
 		var yes, no string
 
-		langs := gptResultStyle.Render(m.gptResponse)
-		title := fmt.Sprintf("Ghost detected the following languages in your codebase: %v. Is this correct (y/n)?\n", langs)
+		langs := gptResultStyle.Render(m.detectedLanguages)
+		title := fmt.Sprintf("%v Ghost detected the following languages in your codebase: %v. Is this correct (y/n)?\n", emoji.Ghost,langs)
 
 		if m.choice == "yes" {
 			yes = selectedStyle.Render("> Yes")
@@ -157,16 +155,7 @@ func getFilesInCurrentDirAndSubDirs() []string {
 	return files
 }
 
-func renderWelcome(m model) {
-	welcomeMsg := fmt.Sprintf("Running Ghost over your files...  %v\n", emoji.Ghost)
-	welcome := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("205")).
-		Bold(true).
-		Render(welcomeMsg)
-	fmt.Println(welcome)
-}
-
-func chatGPTRequest(files []string, prompt string, m model) (response string, err error) {
+func chatGPTRequest(prompt string) (response string, err error) {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	client := openai.NewClient(apiKey)
 	resp, err := client.CreateChatCompletion(
