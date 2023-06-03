@@ -16,24 +16,53 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
-type errMsg error
-
 type model struct {
-	spinner  spinner.Model
+	spinner           spinner.Model
 	isLoadingResponse bool
-	gptResponse string
-	quitting bool
-	err      error
+	gptResponse       string
+	choice            string
+	quitting          bool
+	err               error
 }
 
 const (
-	hotPink = lipgloss.Color("#ff69b7")
+	hotPink    = lipgloss.Color("#ff69b7")
+	listHeight = 14
 )
 
 var (
+	titleStyle     = lipgloss.NewStyle().MarginLeft(2)
 	gptResultStyle = lipgloss.NewStyle().Foreground(hotPink)
+	itemStyle      = lipgloss.NewStyle().PaddingLeft(2)
+	selectedStyle  = lipgloss.NewStyle().PaddingLeft(2).Foreground(hotPink)
 )
+
+var runCmd = &cobra.Command{
+	Use:   "run",
+	Short: "Run the ghost CLI",
+	Run: func(cmd *cobra.Command, args []string) {
+		s := spinner.New()
+		s.Spinner = spinner.Dot
+		s.Style = lipgloss.NewStyle().Foreground(hotPink)
+
+		m := model{
+			spinner:           s,
+			isLoadingResponse: false,
+			choice:            "yes",
+			gptResponse:       "",
+			quitting:          false,
+			err:               nil,
+		}
+
+		renderWelcome(m)
+		p := tea.NewProgram(m)
+		if _, err := p.Run(); err != nil {
+			log.Fatal("Error running program: ", err)
+			os.Exit(1)
+		}
+	},
+}
+
 func (m model) Init() tea.Cmd {
 	return m.spinner.Tick
 }
@@ -41,26 +70,30 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "esc", "ctrl+c":
+		// User quits ghost
+		if msg.String() == "ctrl+c" || msg.String() == "q" || msg.String() == "esc" {
 			m.quitting = true
 			return m, tea.Quit
-		default:
-			return m, nil
 		}
 
-	case errMsg:
-		m.err = msg
-		return m, nil
+		// Choose yes or no to the GPT response
+		if msg.String() == "up" && m.choice == "no" {
+			m.choice = "yes"
+		}
+		if msg.String() == "down" && m.choice == "yes" {
+			m.choice = "no"
+		}
 
 	default:
 		var cmd tea.Cmd
 		m.isLoadingResponse = true
-		m.spinner, cmd = m.spinner.Update(msg)
+		m.spinner, _ = m.spinner.Update(msg)
 
+		// Get files in current directory and subdirectories for sending to the model
 		files := getFilesInCurrentDirAndSubDirs()
 
-		prompt := fmt.Sprintf("Use the following files to tell me what languages are being used in this project. Return a comma-separated list with just the language names: %v", files)	
+		// Send those file names to the model for language detection
+		prompt := fmt.Sprintf("Use the following files to tell me what languages are being used in this project. Return a comma-separated list with just the language names: %v", files)
 		response, err := chatGPTRequest(files, prompt, m)
 
 		if err != nil {
@@ -71,48 +104,38 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, cmd
 	}
+	return m, nil
 }
 
 func (m model) View() string {
+	// Ghost is loading the response from GPT
 	if m.isLoadingResponse {
-		return indent.String(m.spinner.View() + "Detecting languages...", 2)
+		return indent.String(m.spinner.View()+"Detecting languages...", 2)
 	}
 
+	// Ghost has detected languages in the codebase and is asking for confirmation
 	if len(m.gptResponse) != 0 {
+		var yes, no string
 
-		langsDetectedMsg := gptResultStyle.Render(m.gptResponse)
-		langMsg := fmt.Sprintf("Ghost detected the following languages in your codebase: %v. Is this correct (y/n)?\n", langsDetectedMsg)
-		return indent.String(langMsg, 2)
+		langs := gptResultStyle.Render(m.gptResponse)
+		title := fmt.Sprintf("Ghost detected the following languages in your codebase: %v. Is this correct (y/n)?\n", langs)
+
+		if m.choice == "yes" {
+			yes = selectedStyle.Render("> Yes")
+			no = itemStyle.Render("No, I want to Ghost to refine its response")
+		} else {
+			yes = itemStyle.Render("Yes")
+			no = selectedStyle.Render("> No, I want to Ghost to refine its response")
+		}
+
+		return indent.String(title+yes+"\n"+no, 2)
+
 	}
 
 	if m.err != nil {
 		return fmt.Sprintf("Error: %v\n", m.err)
 	}
 	return ""
-}
-
-var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "Run the ghost CLI",
-	Run: func(cmd *cobra.Command, args []string) {
-		s := spinner.New()
-		s.Spinner = spinner.Dot
-		s.Style = lipgloss.NewStyle().Foreground(hotPink)
-
-		m := model {
-			spinner: s,
-			isLoadingResponse: false,
-			gptResponse: "",
-			quitting: false,
-			err: nil,
-		}
-		renderWelcome(m)
-		p := tea.NewProgram(m)
-		if _, err := p.Run(); err != nil {
-			log.Fatal("Error running program: ", err)
-			os.Exit(1)
-		}
-	},
 }
 
 func getFilesInCurrentDirAndSubDirs() []string {
@@ -135,7 +158,7 @@ func getFilesInCurrentDirAndSubDirs() []string {
 }
 
 func renderWelcome(m model) {
-	welcomeMsg := fmt.Sprintf("Running Ghost over your files...  %v\n",  emoji.Ghost)
+	welcomeMsg := fmt.Sprintf("Running Ghost over your files...  %v\n", emoji.Ghost)
 	welcome := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("205")).
 		Bold(true).
@@ -166,6 +189,6 @@ func chatGPTRequest(files []string, prompt string, m model) (response string, er
 	if len(resp.Choices) == 0 {
 		return "No languages detected!", err
 	} else {
-		return resp.Choices[0].Message.Content,nil
+		return resp.Choices[0].Message.Content, nil
 	}
 }
