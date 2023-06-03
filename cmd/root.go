@@ -18,5 +18,5 @@ func Execute() error {
 func init() {
 	rootCmd.AddCommand(runCmd)
 
-	runCmd.PersistentFlags().String("repo", "", "URL to a GitHub repository to use")
+	runCmd.LocalFlags().String("repo", "", "URL to a GitHub repository to use")
 }
