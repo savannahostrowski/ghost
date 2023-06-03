@@ -46,7 +46,7 @@ var runCmd = &cobra.Command{
 
 		m := model{
 			spinner:           s,
-			isLoadingResponse: false,
+			isLoadingResponse: true,
 			choice:            "yes",
 			detectedLanguages:       "",
 			quitting:          false,
@@ -87,19 +87,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.isLoadingResponse = true
 		m.spinner, _ = m.spinner.Update(msg)
 
-		// Get files in current directory and subdirectories for sending to the model
-		files := getFilesInCurrentDirAndSubDirs()
+		if len(m.detectedLanguages) == 0 {
+			// Get files in current directory and subdirectories for sending to the model
+			files := getFilesInCurrentDirAndSubDirs()
 
-		// Send those file names to the model for language detection
-		prompt := fmt.Sprintf("Use the following files to tell me what languages are being used in this project. Return a comma-separated list with just the language names: %v", files)
-		response, err := chatGPTRequest(prompt)
+			// Send those file names to the model for language detection
+			prompt := fmt.Sprintf("Use the following files to tell me what languages are being used in this project. Return a comma-separated list with just the language names: %v", files)
+			response, err := chatGPTRequest(prompt)
 
-		if err != nil {
-			return m, tea.Quit
+			if err != nil {
+				return m, tea.Quit
+			}
+			m.detectedLanguages = response
+		} else {
+			m.isLoadingResponse = false
 		}
-		m.detectedLanguages = response
-		m.isLoadingResponse = false
 
+	
 		return m, cmd
 	}
 	return m, nil
