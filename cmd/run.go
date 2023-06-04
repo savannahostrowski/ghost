@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -19,6 +19,7 @@ import (
 )
 
 type model struct {
+	files                 []string
 	additionalProjectInfo textinput.Model
 	choice                string
 	currentView           View
@@ -106,7 +107,6 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		// User quits Ghost
 		if msg.String() == "ctrl+c" || msg.String() == "q" || msg.String() == "esc" {
 			m.quitting = true
 			return m, tea.Quit
@@ -133,22 +133,34 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.currentView = LoadingDetectedLanguages
 			}
 
-			if m.currentView == ConfirmTasks {
-				m.currentView = GenerateGHA
+			if m.currentView == InputTasks && m.desiredTasks.Value() != "" {
+				m.desiredTasks.Blur()
+				m.currentView = LoadingGHA
+			}
+
+			if m.currentView == GenerateGHA {
+				if m.choice == "yes" {
+					writeGHAWorkflowToFile(m.GHAWorkflow)
+					fmt.Println("Successfully generated a GHA workflow!")
+					return m, tea.Quit
+				} else {
+					m.additionalProjectInfo.Focus()
+					m.currentView = CorrectGHA
+				}
 			}
 		}
 	}
 
 	if m.currentView == LoadingDetectedLanguages {
-		files := getFilesInCurrentDirAndSubDirs()
-
 		var prompt string
 		if m.additionalProjectInfo.Value() == "" {
+			files := getFilesInCurrentDirAndSubDirs()
+			m.files = files
 			prompt = fmt.Sprintf("Use the following files to tell me what languages are being used in this project. Return a comma-separated list with just the language names: %v. ", files)
 		} else {
-			prompt = fmt.Sprintf(`You said this project uses the following languages: %v. 
+			prompt = fmt.Sprintf(`You said this project uses the following languages %v (detected from the following files: %v). 
 		According to the user, this is not correct. Here's some additional info from the user: %v.
-		Return a comma-separated list of the languages used by this project.`, m.detectedLanguages, m.additionalProjectInfo.Value())
+		Return a comma-separated list of the languages used by this project.`, m.files, m.detectedLanguages, m.additionalProjectInfo.Value())
 		}
 		response, err := chatGPTRequest(prompt)
 
@@ -156,14 +168,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			log.Error(err)
 		}
 		m.detectedLanguages = response
+		m.additionalProjectInfo.SetValue("")
 		m.currentView = ConfirmLanguages
 	}
 
-	if m.currentView == ConfirmTasks {
+	if m.currentView == LoadingGHA && m.GHAWorkflow == "" {
 		prompt := fmt.Sprintf(`For a %v program, generate a GitHub Actions workflow that will include the following tasks: %v.
+		Name it "Ghost-generated pipeline". Have it run on push to master or main, unless the user specified otherwise.
 		Leave placeholders for things like version and at the end of generating the GitHub Action, tell the user what their next steps should be`,
 			m.detectedLanguages, m.desiredTasks.Value())
-		chatGPTStreamingRequest(prompt, m)
+		response, err := chatGPTRequest(prompt)
+		if err != nil {
+			log.Error(err)
+		}
+		m.GHAWorkflow = response
+		m.desiredTasks.SetValue("")
 		m.currentView = GenerateGHA
 	}
 
@@ -183,12 +202,14 @@ func (m model) View() string {
 	}
 
 	if m.currentView == LoadingGHA {
+		fmt.Printf("load gha")
 		return m.spinner.View() + "Generating GHA workflow..."
 	}
 
 	if m.currentView == ConfirmLanguages {
 		if len(m.detectedLanguages) == 0 {
 			log.Error("Error: detected languages is empty")
+			return ""
 		}
 		return languageConfirmationView(m)
 	}
@@ -196,6 +217,7 @@ func (m model) View() string {
 	if m.currentView == CorrectLanguages {
 		if len(m.detectedLanguages) == 0 {
 			log.Error("Error: detected languages is empty")
+			return ""
 		}
 		return correctLanguagesView(m)
 	}
@@ -203,15 +225,25 @@ func (m model) View() string {
 	if m.currentView == InputTasks {
 		if len(m.detectedLanguages) == 0 {
 			log.Error("Error: detected languages is empty")
+			return ""
 		}
 		return giveTasksView(m)
 	}
 
 	if m.currentView == GenerateGHA {
-		if len(m.detectedLanguages) == 0 || len(m.desiredTasks.Value()) == 0 {
+		if len(m.GHAWorkflow) == 0 {
 			log.Error("Error: detected languages or desired tasks is empty")
+			return ""
 		}
-		return fmt.Sprintf("%v Ghost has generated a GitHub Actions workflow for your project: \n\n%v\n\n", emoji.Ghost, m.GHAWorkflow)
+		return generateGHAView(m)
+	}
+
+	if m.currentView == CorrectGHA {
+		if len(m.GHAWorkflow) == 0 {
+			log.Error("Error: detected languages or desired tasks is empty")
+			return ""
+		}
+		return correctGHAView(m)
 	}
 
 	if m.err != nil {
@@ -266,45 +298,6 @@ func chatGPTRequest(prompt string) (response string, err error) {
 	}
 }
 
-func chatGPTStreamingRequest(prompt string, m model) {
-	apiKey := os.Getenv("OPENAI_API_KEY")
-	client := openai.NewClient(apiKey)
-	ctx := context.Background()
-
-	req := openai.ChatCompletionRequest{
-		Model: openai.GPT3Dot5Turbo,
-		Messages: []openai.ChatCompletionMessage{
-			{
-				Role:    openai.ChatMessageRoleUser,
-				Content: prompt,
-			},
-		},
-		Stream: true,
-	}
-	stream, err := client.CreateChatCompletionStream(ctx, req)
-	if err != nil {
-		log.Error("ChatCompletionStream error: %v\n", err)
-		return
-	}
-	defer stream.Close()
-
-	for {
-		response, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			fmt.Println("\nEnd of response")
-			return
-		}
-
-		if err != nil {
-			log.Error("\nStream error: %v\n", err)
-			return
-		}
-
-		m.GHAWorkflow = m.GHAWorkflow + response.Choices[0].Delta.Content
-		fmt.Printf("%v", response.Choices[0].Delta.Content)
-	}
-}
-
 func languageConfirmationView(m model) string {
 	var yes, no string
 	langs := gptResultStyle.Render(m.detectedLanguages)
@@ -318,7 +311,7 @@ func languageConfirmationView(m model) string {
 		no = selectedStyle.Render("> No, I want to Ghost to refine its response")
 	}
 
-	return title+yes+"\n"+no
+	return title + yes + "\n" + no
 }
 
 func giveTasksView(m model) string {
@@ -337,4 +330,50 @@ func correctLanguagesView(m model) string {
 		m.additionalProjectInfo.View(),
 		"(Press Enter to continue)",
 	) + "\n"
+}
+
+func generateGHAView(m model) string {
+	var yes, no string
+	title := fmt.Sprintf("%v Ghost generated this GitHub Actions workflow for your project...\n", emoji.Ghost)
+
+	if m.choice == "yes" {
+		yes = selectedStyle.Render("> Great! Output to .github/workflows/ghost.yml")
+		no = itemStyle.Render("I want Ghost to refine to generated GHA workflow")
+	} else {
+		yes = itemStyle.Render("Great! Output to .github/workflows/ghost.yml")
+		no = selectedStyle.Render("> I want Ghost to refine to generated GHA workflow")
+	}
+
+	return title + "\n" +
+	 gptResultStyle.Render(m.GHAWorkflow) + "\n" +
+	 "How does this look?" + "\n" + yes + "\n" + no
+}
+
+func correctGHAView (m model) string {
+	title := fmt.Sprintf("%v Oops, tell Ghost more about the tasks you want to do in your GHA!\n", emoji.Ghost)
+	return fmt.Sprintf(
+		title+"\n%s\n\n%s",
+		m.additionalProjectInfo.View(),
+		"(Press Enter to continue)",
+	) + "\n"
+}
+
+func writeGHAWorkflowToFile(gha string) {
+	_, err := os.Stat(".github/workflows")
+	if os.IsNotExist(err) {
+		errDir := os.MkdirAll(".github/workflows", 0755)
+		if errDir != nil {
+			log.Error("Error creating .github/workflows directory")
+			return
+		}
+	}
+
+	filename := fmt.Sprintf(".github/workflows/ghost_%v.yml", time.Now().UnixNano())
+	_, err = os.Create(filename)
+	if err != nil {
+		log.Error("Error creating ghost.yml file")
+		return
+	}
+	
+	ioutil.WriteFile(filename, []byte(gha), 0644)
 }
