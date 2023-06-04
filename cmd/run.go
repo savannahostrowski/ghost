@@ -14,24 +14,20 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
 	"github.com/enescakir/emoji"
-	"github.com/muesli/reflow/indent"
 	"github.com/sashabaranov/go-openai"
 	"github.com/spf13/cobra"
 )
 
 type model struct {
-	spinner             spinner.Model
-	isLoadingResponse   bool
-	detectedLanguages   string
-	acceptedLanguages   bool
-	choice              string
-	desiredTasks        textinput.Model
-	enteredTasks        bool
-	isStreamingResponse bool
-	GHAWorkflow         string
-	quitting            bool
-	err                 error
-	currentView 	   View
+	additionalProjectInfo textinput.Model
+	choice                string
+	currentView           View
+	desiredTasks          textinput.Model
+	detectedLanguages     string
+	err                   error
+	GHAWorkflow           string
+	quitting              bool
+	spinner               spinner.Model
 }
 
 const (
@@ -82,23 +78,24 @@ func initialModel() model {
 	// Initialize the text input for desired tasks in the GHA
 	ti := textinput.New()
 	ti.Placeholder = "Enter desired tasks to include in your GHA"
-	ti.Focus()
 	ti.CharLimit = 300
 	ti.Width = 300
 
+	additionalInfo := textinput.New()
+	additionalInfo.Placeholder = "Enter any additional information about your project"
+	additionalInfo.CharLimit = 300
+	additionalInfo.Width = 300
+
 	return model{
-		spinner:             s,
-		isLoadingResponse:   true,
-		choice:              "yes",
-		detectedLanguages:   "",
-		desiredTasks:        ti,
-		isStreamingResponse: false,
-		GHAWorkflow:         "",
-		acceptedLanguages:   false,
-		enteredTasks:        false,
-		quitting:            false,
-		err:                 nil,
-		currentView:         LoadingDetectedLanguages,
+		additionalProjectInfo: additionalInfo,
+		choice:                "yes",
+		currentView:           LoadingDetectedLanguages,
+		desiredTasks:          ti,
+		detectedLanguages:     "",
+		err:                   nil,
+		GHAWorkflow:           "",
+		spinner:               s,
+		quitting:              false,
 	}
 }
 
@@ -121,86 +118,106 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.choice = "no"
 		}
 		if msg.String() == "enter" {
-			// User accepts or rejects the detected languages
-			if len(m.detectedLanguages) != 0 && !m.enteredTasks {
+			if m.currentView == ConfirmLanguages {
 				if m.choice == "yes" {
-					m.acceptedLanguages = true
+					m.additionalProjectInfo.Blur()
+					m.desiredTasks.Focus()
+					m.currentView = InputTasks
 				} else {
-					m.acceptedLanguages = false
+					m.additionalProjectInfo.Focus()
+					m.currentView = CorrectLanguages
 				}
 			}
 
-			if m.acceptedLanguages && len(m.desiredTasks.Value()) != 0 {
-				m.enteredTasks = true
-				m.isLoadingResponse = true
+			if m.currentView == CorrectLanguages && m.additionalProjectInfo.Value() != "" {
+				m.currentView = LoadingDetectedLanguages
+			}
+
+			if m.currentView == ConfirmTasks {
+				m.currentView = GenerateGHA
 			}
 		}
 	}
 
-	if len(m.detectedLanguages) == 0 && !m.acceptedLanguages {
-		m.isLoadingResponse = true
-		// Get files in current directory and subdirectories for sending to the model
+	if m.currentView == LoadingDetectedLanguages {
 		files := getFilesInCurrentDirAndSubDirs()
 
-		// Send those file names to the model for language detection
-		prompt := fmt.Sprintf("Use the following files to tell me what languages are being used in this project. Return a comma-separated list with just the language names: %v", files)
+		var prompt string
+		if m.additionalProjectInfo.Value() == "" {
+			prompt = fmt.Sprintf("Use the following files to tell me what languages are being used in this project. Return a comma-separated list with just the language names: %v. ", files)
+		} else {
+			prompt = fmt.Sprintf(`You said this project uses the following languages: %v. 
+		According to the user, this is not correct. Here's some additional info from the user: %v.
+		Return a comma-separated list of the languages used by this project.`, m.detectedLanguages, m.additionalProjectInfo.Value())
+		}
 		response, err := chatGPTRequest(prompt)
 
 		if err != nil {
 			log.Error(err)
 		}
 		m.detectedLanguages = response
-		m.isLoadingResponse = false
+		m.currentView = ConfirmLanguages
 	}
 
-	if m.acceptedLanguages && m.enteredTasks && len(m.GHAWorkflow) == 0 {
-		m.isLoadingResponse = true
+	if m.currentView == ConfirmTasks {
 		prompt := fmt.Sprintf(`For a %v program, generate a GitHub Actions workflow that will include the following tasks: %v.
 		Leave placeholders for things like version and at the end of generating the GitHub Action, tell the user what their next steps should be`,
 			m.detectedLanguages, m.desiredTasks.Value())
 		chatGPTStreamingRequest(prompt, m)
-		m.isLoadingResponse = false
+		m.currentView = GenerateGHA
 	}
 
 	var spinCmd tea.Cmd
 	var tasksCmd tea.Cmd
+	var additionalInfoCmd tea.Cmd
 	m.spinner, spinCmd = m.spinner.Update(msg)
 	m.desiredTasks, tasksCmd = m.desiredTasks.Update(msg)
+	m.additionalProjectInfo, additionalInfoCmd = m.additionalProjectInfo.Update(msg)
 
-	return m, tea.Batch(spinCmd, tasksCmd)
+	return m, tea.Batch(spinCmd, tasksCmd, additionalInfoCmd)
 }
 
 func (m model) View() string {
-	// Ghost is loading the response from GPT
-	if m.isLoadingResponse {
-		// Show spinner on initial language detection
-		if len(m.detectedLanguages) == 0 && !m.acceptedLanguages {
-			return m.spinner.View() + "Detecting languages..."
-		}
-		if m.acceptedLanguages && m.enteredTasks && len(m.GHAWorkflow) == 0 {
-			return m.spinner.View() + "Generating GHA workflow..."
-		}
+	if m.currentView == LoadingDetectedLanguages {
+		return m.spinner.View() + "Detecting languages..."
 	}
 
-	// Ghost has detected languages in the codebase and is asking for confirmation
-	if len(m.detectedLanguages) != 0 && !m.acceptedLanguages {
+	if m.currentView == LoadingGHA {
+		return m.spinner.View() + "Generating GHA workflow..."
+	}
+
+	if m.currentView == ConfirmLanguages {
+		if len(m.detectedLanguages) == 0 {
+			log.Error("Error: detected languages is empty")
+		}
 		return languageConfirmationView(m)
 	}
 
-	// User has accepted the detected languages and is now being asked for desired tasks for the GHA
-	if m.acceptedLanguages && !m.enteredTasks {
+	if m.currentView == CorrectLanguages {
+		if len(m.detectedLanguages) == 0 {
+			log.Error("Error: detected languages is empty")
+		}
+		return correctLanguagesView(m)
+	}
+
+	if m.currentView == InputTasks {
+		if len(m.detectedLanguages) == 0 {
+			log.Error("Error: detected languages is empty")
+		}
 		return giveTasksView(m)
 	}
 
-	// User has accepted the detected languages and has entered desired tasks for the GHA
-	if m.acceptedLanguages && m.enteredTasks && m.isStreamingResponse {
+	if m.currentView == GenerateGHA {
+		if len(m.detectedLanguages) == 0 || len(m.desiredTasks.Value()) == 0 {
+			log.Error("Error: detected languages or desired tasks is empty")
+		}
 		return fmt.Sprintf("%v Ghost has generated a GitHub Actions workflow for your project: \n\n%v\n\n", emoji.Ghost, m.GHAWorkflow)
 	}
 
 	if m.err != nil {
 		log.Error("Error: %v\n", m.err)
 	}
-	return fmt.Sprintf("%v", m.enteredTasks)
+	return ""
 }
 
 func getFilesInCurrentDirAndSubDirs() []string {
@@ -264,7 +281,6 @@ func chatGPTStreamingRequest(prompt string, m model) {
 		},
 		Stream: true,
 	}
-	m.isStreamingResponse = true
 	stream, err := client.CreateChatCompletionStream(ctx, req)
 	if err != nil {
 		log.Error("ChatCompletionStream error: %v\n", err)
@@ -302,7 +318,7 @@ func languageConfirmationView(m model) string {
 		no = selectedStyle.Render("> No, I want to Ghost to refine its response")
 	}
 
-	return indent.String(title+yes+"\n"+no, 2)
+	return title+yes+"\n"+no
 }
 
 func giveTasksView(m model) string {
@@ -310,6 +326,15 @@ func giveTasksView(m model) string {
 	return fmt.Sprintf(
 		title+"\n%s\n\n%s",
 		m.desiredTasks.View(),
+		"(Press Enter to continue)",
+	) + "\n"
+}
+
+func correctLanguagesView(m model) string {
+	title := fmt.Sprintf("%v Oops, tell Ghost more about the languages used in your project!\n", emoji.Ghost)
+	return fmt.Sprintf(
+		title+"\n%s\n\n%s",
+		m.additionalProjectInfo.View(),
 		"(Press Enter to continue)",
 	) + "\n"
 }
