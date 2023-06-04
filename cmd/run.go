@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -25,6 +27,7 @@ type model struct {
 	choice            string
 	desiredTasks      textinput.Model
 	enteredTasks      bool
+	isStreamingResponse bool
 	GHAWorkflow       string
 	quitting          bool
 	err               error
@@ -75,6 +78,7 @@ func initialModel() model {
 		choice:            "yes",
 		detectedLanguages: "",
 		desiredTasks:      ti,
+		isStreamingResponse: false,
 		GHAWorkflow:       "",
 		acceptedLanguages: false,
 		enteredTasks:      false,
@@ -111,14 +115,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 
-			if m.acceptedLanguages && len(m.desiredTasks.Value()) != 0  {
+			if m.acceptedLanguages && len(m.desiredTasks.Value()) != 0 {
 				m.enteredTasks = true
 				m.isLoadingResponse = true
 			}
 		}
 	}
 
-	if len(m.detectedLanguages) == 0 && !m.acceptedLanguages{
+	if len(m.detectedLanguages) == 0 && !m.acceptedLanguages {
+		m.isLoadingResponse = true
 		// Get files in current directory and subdirectories for sending to the model
 		files := getFilesInCurrentDirAndSubDirs()
 
@@ -130,6 +135,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			log.Error(err)
 		}
 		m.detectedLanguages = response
+		m.isLoadingResponse = false
+	}
+
+	if m.acceptedLanguages && m.enteredTasks && len(m.GHAWorkflow) == 0 {
+		m.isLoadingResponse = true
+		prompt := fmt.Sprintf(`For a %v program, generate a GitHub Actions workflow that will include the following tasks: %v.
+		Leave placeholders for things like version and at the end of generating the GitHub Action, tell the user what their next steps should be`,
+		m.detectedLanguages, m.desiredTasks.Value())
+		chatGPTStreamingRequest(prompt, m)
 		m.isLoadingResponse = false
 	}
 
@@ -145,57 +159,27 @@ func (m model) View() string {
 	// Ghost is loading the response from GPT
 	if m.isLoadingResponse {
 		// Show spinner on initial language detection
-		if len(m.detectedLanguages) == 0 {
+		if len(m.detectedLanguages) == 0 && !m.acceptedLanguages {
 			return m.spinner.View() + "Detecting languages..."
-		} else {
-			// Show spinner on GHA workflow generation
-			if m.acceptedLanguages && m.enteredTasks && len(m.GHAWorkflow) == 0 {
-				return m.spinner.View() + "Generating GHA workflow..."
-			}
+		}
+		if m.acceptedLanguages && m.enteredTasks && len(m.GHAWorkflow) == 0 {
+			return m.spinner.View() + "Generating GHA workflow..."
 		}
 	}
 
 	// Ghost has detected languages in the codebase and is asking for confirmation
 	if len(m.detectedLanguages) != 0 && !m.acceptedLanguages {
-		var yes, no string
-		langs := gptResultStyle.Render(m.detectedLanguages)
-		title := fmt.Sprintf("%v Ghost detected the following languages in your codebase: %v. Is this correct?\n", emoji.Ghost, langs)
-
-		if m.choice == "yes" {
-			yes = selectedStyle.Render("> Yes")
-			no = itemStyle.Render("No, I want to Ghost to refine its response")
-		} else {
-			yes = itemStyle.Render("Yes")
-			no = selectedStyle.Render("> No, I want to Ghost to refine its response")
-		}
-
-		return indent.String(title+yes+"\n"+no, 2)
+		return languageConfirmationView(m)
 	}
 
 	// User has accepted the detected languages and is now being asked for desired tasks for the GHA
 	if m.acceptedLanguages && !m.enteredTasks {
-		title := fmt.Sprintf("%v Ghost wants to know if there any specific tasks do you want to do in your GHA (e.g. linting, run tests)?\n", emoji.Ghost)
-		return fmt.Sprintf(
-			title+"\n%s\n\n%s",
-			m.desiredTasks.View(),
-			"(Press Enter to continue)",
-		) + "\n"
+		return giveTasksView(m)
 	}
 
 	// User has accepted the detected languages and has entered desired tasks for the GHA
-	if m.enteredTasks && m.acceptedLanguages && len(m.desiredTasks.Value()) != 0 && len(m.detectedLanguages) != 0 {
-		prompt := fmt.Sprintf(`For a %v program, generate a GitHub Actions workflow that will include the following tasks: %v.
-		Leave placeholders for things like version and at the end of generating the GitHub Action, tell the user what their next steps should be`,
-			m.detectedLanguages, m.desiredTasks.Value())
-		response, err := chatGPTRequest(prompt)
-		m.GHAWorkflow = response
-
-		if err != nil {
-			log.Error("Error: %v\n", err)
-		}
-
-		return fmt.Sprintf("Here is your GitHub Actions workflow:\n\n%v\n\n", m.GHAWorkflow)
-
+	if m.acceptedLanguages && m.enteredTasks && m.isStreamingResponse {
+		return fmt.Sprintf("%v Ghost has generated a GitHub Actions workflow for your project: \n\n%v\n\n", emoji.Ghost, m.GHAWorkflow)
 	}
 
 	if m.err != nil {
@@ -249,3 +233,69 @@ func chatGPTRequest(prompt string) (response string, err error) {
 		return resp.Choices[0].Message.Content, nil
 	}
 }
+
+func chatGPTStreamingRequest(prompt string, m model) {
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	client := openai.NewClient(apiKey)
+	ctx := context.Background()
+
+	req := openai.ChatCompletionRequest{
+		Model:     openai.GPT3Dot5Turbo,
+		Messages: []openai.ChatCompletionMessage{
+			{
+				Role:    openai.ChatMessageRoleUser,
+				Content: prompt,
+			},
+		},
+		Stream: true,
+	}
+	m.isStreamingResponse = true
+	stream, err := client.CreateChatCompletionStream(ctx, req)
+	if err != nil {
+		log.Error("ChatCompletionStream error: %v\n", err)
+		return
+	}
+	defer stream.Close()
+
+	for {
+		response, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			fmt.Println("\nEnd of response")
+			return
+		}
+
+		if err != nil {
+			log.Error("\nStream error: %v\n", err)
+			return
+		}
+
+		m.GHAWorkflow = m.GHAWorkflow + response.Choices[0].Delta.Content
+		fmt.Printf("%v", response.Choices[0].Delta.Content)
+	}
+}
+
+func languageConfirmationView(m model) string {
+	var yes, no string
+	langs := gptResultStyle.Render(m.detectedLanguages)
+	title := fmt.Sprintf("%v Ghost detected the following languages in your codebase: %v. Is this correct?\n", emoji.Ghost, langs)
+
+	if m.choice == "yes" {
+		yes = selectedStyle.Render("> Yes")
+		no = itemStyle.Render("No, I want to Ghost to refine its response")
+	} else {
+		yes = itemStyle.Render("Yes")
+		no = selectedStyle.Render("> No, I want to Ghost to refine its response")
+	}
+
+	return indent.String(title+yes+"\n"+no, 2)
+}
+
+func giveTasksView(m model) string {
+	title := fmt.Sprintf("%v Ghost wants to know if there any specific tasks do you want to do in your GHA (e.g. linting, run tests)?\n", emoji.Ghost)
+	return fmt.Sprintf(
+		title+"\n%s\n\n%s",
+		m.desiredTasks.View(),
+		"(Press Enter to continue)",
+	) + "\n"
+}
+
