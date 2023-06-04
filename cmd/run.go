@@ -349,7 +349,7 @@ func generateGHAView(m model) string {
 	 "How does this look?" + "\n" + yes + "\n" + no
 }
 
-func correctGHAView (m model) string {
+func correctGHAView(m model) string {
 	title := fmt.Sprintf("%v Oops, tell Ghost more about the tasks you want to do in your GHA!\n", emoji.Ghost)
 	return fmt.Sprintf(
 		title+"\n%s\n\n%s",
