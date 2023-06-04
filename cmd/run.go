@@ -20,17 +20,18 @@ import (
 )
 
 type model struct {
-	spinner           spinner.Model
-	isLoadingResponse bool
-	detectedLanguages string
-	acceptedLanguages bool
-	choice            string
-	desiredTasks      textinput.Model
-	enteredTasks      bool
+	spinner             spinner.Model
+	isLoadingResponse   bool
+	detectedLanguages   string
+	acceptedLanguages   bool
+	choice              string
+	desiredTasks        textinput.Model
+	enteredTasks        bool
 	isStreamingResponse bool
-	GHAWorkflow       string
-	quitting          bool
-	err               error
+	GHAWorkflow         string
+	quitting            bool
+	err                 error
+	currentView 	   View
 }
 
 const (
@@ -41,6 +42,19 @@ var (
 	gptResultStyle = lipgloss.NewStyle().Foreground(hotPink)
 	itemStyle      = lipgloss.NewStyle().PaddingLeft(2)
 	selectedStyle  = lipgloss.NewStyle().PaddingLeft(2).Foreground(hotPink)
+)
+
+type View int64
+
+const (
+	ConfirmLanguages         View = 0
+	CorrectLanguages         View = 1
+	InputTasks               View = 2
+	ConfirmTasks             View = 3
+	GenerateGHA              View = 4
+	CorrectGHA               View = 5
+	LoadingDetectedLanguages View = 6
+	LoadingGHA               View = 7
 )
 
 var runCmd = &cobra.Command{
@@ -73,17 +87,18 @@ func initialModel() model {
 	ti.Width = 300
 
 	return model{
-		spinner:           s,
-		isLoadingResponse: true,
-		choice:            "yes",
-		detectedLanguages: "",
-		desiredTasks:      ti,
+		spinner:             s,
+		isLoadingResponse:   true,
+		choice:              "yes",
+		detectedLanguages:   "",
+		desiredTasks:        ti,
 		isStreamingResponse: false,
-		GHAWorkflow:       "",
-		acceptedLanguages: false,
-		enteredTasks:      false,
-		quitting:          false,
-		err:               nil,
+		GHAWorkflow:         "",
+		acceptedLanguages:   false,
+		enteredTasks:        false,
+		quitting:            false,
+		err:                 nil,
+		currentView:         LoadingDetectedLanguages,
 	}
 }
 
@@ -142,7 +157,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.isLoadingResponse = true
 		prompt := fmt.Sprintf(`For a %v program, generate a GitHub Actions workflow that will include the following tasks: %v.
 		Leave placeholders for things like version and at the end of generating the GitHub Action, tell the user what their next steps should be`,
-		m.detectedLanguages, m.desiredTasks.Value())
+			m.detectedLanguages, m.desiredTasks.Value())
 		chatGPTStreamingRequest(prompt, m)
 		m.isLoadingResponse = false
 	}
@@ -240,7 +255,7 @@ func chatGPTStreamingRequest(prompt string, m model) {
 	ctx := context.Background()
 
 	req := openai.ChatCompletionRequest{
-		Model:     openai.GPT3Dot5Turbo,
+		Model: openai.GPT3Dot5Turbo,
 		Messages: []openai.ChatCompletionMessage{
 			{
 				Role:    openai.ChatMessageRoleUser,
@@ -298,4 +313,3 @@ func giveTasksView(m model) string {
 		"(Press Enter to continue)",
 	) + "\n"
 }
-
