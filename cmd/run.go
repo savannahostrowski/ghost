@@ -45,15 +45,16 @@ var (
 type View int64
 
 const (
-	ConfirmLanguages         View = 0
-	CorrectLanguages         View = 1
-	InputTasks               View = 2
-	ConfirmTasks             View = 3
-	GenerateGHA              View = 4
-	CorrectGHA               View = 5
-	LoadingDetectedLanguages View = 6
-	LoadingGHA               View = 7
-	Goodbye                  View = 8
+	ConfirmLanguages View = iota
+	CorrectLanguages
+	InputTasks
+	ConfirmTasks
+	GenerateGHA
+	CorrectGHA
+	LoadingDetectedLanguages
+	LoadingGHA
+	Goodbye
+	Preload
 )
 
 var runCmd = &cobra.Command{
@@ -90,7 +91,7 @@ func initialModel() model {
 	return model{
 		additionalProjectInfo: additionalInfo,
 		choice:                "yes",
-		currentView:           LoadingDetectedLanguages,
+		currentView:           Preload,
 		desiredTasks:          ti,
 		detectedLanguages:     "",
 		err:                   nil,
@@ -105,7 +106,22 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
 	switch msg := msg.(type) {
+	case gptResponse:
+		switch m.currentView {
+		case LoadingDetectedLanguages:
+			m.detectedLanguages = string(msg)
+			m.additionalProjectInfo.SetValue("")
+			m.currentView = ConfirmLanguages
+		case LoadingGHA:
+			m.GHAWorkflow = string(msg)
+			m.desiredTasks.SetValue("")
+			m.currentView = GenerateGHA
+
+		default:
+			panic(fmt.Sprintf("unexpected view: %v", m.currentView))
+		}
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" || msg.String() == "q" || msg.String() == "esc" {
 			m.quitting = true
@@ -130,12 +146,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			if m.currentView == CorrectLanguages && m.additionalProjectInfo.Value() != "" {
-				m.currentView = LoadingDetectedLanguages
+				m.currentView = Preload
 			}
 
 			if m.currentView == InputTasks && m.desiredTasks.Value() != "" {
 				m.desiredTasks.Blur()
 				m.currentView = LoadingGHA
+				cmds = append(cmds, func() tea.Msg {
+					prompt := fmt.Sprintf(`For a %v program, generate a GitHub Actions workflow that will include the following tasks: %v.
+		Name it "Ghost-generated pipeline". Have it run on push to master or main, unless the user specified otherwise.
+		Leave placeholders for things like version and at the end of generating the GitHub Action, tell the user what their next steps should be`,
+						m.detectedLanguages, m.desiredTasks.Value())
+					response, err := chatGPTRequest(prompt)
+					if err != nil {
+						log.Error(err)
+					}
+					return response
+				})
 			}
 
 			if m.currentView == GenerateGHA {
@@ -155,39 +182,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 
-	if m.currentView == LoadingDetectedLanguages {
-		var prompt string
-		if m.additionalProjectInfo.Value() == "" {
-			files := getFilesInCurrentDirAndSubDirs()
-			m.files = files
-			prompt = fmt.Sprintf("Use the following files to tell me what languages are being used in this project. Return a comma-separated list with just the language names: %v. ", files)
-		} else {
-			prompt = fmt.Sprintf(`You said this project uses the following languages %v (detected from the following files: %v). 
+	if m.currentView == Preload {
+		if len(m.files) == 0 {
+			m.files = getFilesInCurrentDirAndSubDirs()
+		}
+
+		m.currentView = LoadingDetectedLanguages
+		cmds = append(cmds, func() tea.Msg {
+			var prompt string
+			if m.additionalProjectInfo.Value() == "" {
+				prompt = fmt.Sprintf("Use the following files to tell me what languages are being used in this project. Return a comma-separated list with just the language names: %v. ", m.files)
+			} else {
+				prompt = fmt.Sprintf(`You said this project uses the following languages %v (detected from the following files: %v). 
 		According to the user, this is not correct. Here's some additional info from the user: %v.
 		Return a comma-separated list of the languages used by this project.`, m.files, m.detectedLanguages, m.additionalProjectInfo.Value())
-		}
-		response, err := chatGPTRequest(prompt)
+			}
+			response, err := chatGPTRequest(prompt)
 
-		if err != nil {
-			log.Error(err)
-		}
-		m.detectedLanguages = response
-		m.additionalProjectInfo.SetValue("")
-		m.currentView = ConfirmLanguages
-	}
-
-	if m.currentView == LoadingGHA {
-		prompt := fmt.Sprintf(`For a %v program, generate a GitHub Actions workflow that will include the following tasks: %v.
-		Name it "Ghost-generated pipeline". Have it run on push to master or main, unless the user specified otherwise.
-		Leave placeholders for things like version and at the end of generating the GitHub Action, tell the user what their next steps should be`,
-			m.detectedLanguages, m.desiredTasks.Value())
-		response, err := chatGPTRequest(prompt)
-		if err != nil {
-			log.Error(err)
-		}
-		m.GHAWorkflow = response
-		m.desiredTasks.SetValue("")
-		m.currentView = GenerateGHA
+			if err != nil {
+				log.Error(err)
+			}
+			return response
+		})
 	}
 
 	var spinCmd tea.Cmd
@@ -197,7 +213,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.desiredTasks, tasksCmd = m.desiredTasks.Update(msg)
 	m.additionalProjectInfo, additionalInfoCmd = m.additionalProjectInfo.Update(msg)
 
-	return m, tea.Batch(spinCmd, tasksCmd, additionalInfoCmd)
+	cmds = append(cmds, spinCmd, tasksCmd, additionalInfoCmd)
+	return m, tea.Batch(cmds...)
 }
 
 func (m model) View() string {
@@ -270,7 +287,9 @@ func (m model) View() string {
 	return ""
 }
 
-func chatGPTRequest(prompt string) (response string, err error) {
+type gptResponse string
+
+func chatGPTRequest(prompt string) (response gptResponse, err error) {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	client := openai.NewClient(apiKey)
 	resp, err := client.CreateChatCompletion(
@@ -293,7 +312,7 @@ func chatGPTRequest(prompt string) (response string, err error) {
 	if len(resp.Choices) == 0 {
 		return "No languages detected!", err
 	} else {
-		return resp.Choices[0].Message.Content, nil
+		return gptResponse(resp.Choices[0].Message.Content), nil
 	}
 }
 
@@ -301,7 +320,7 @@ func textInputView(m model, title string, input textinput.Model) string {
 	return fmt.Sprintf(
 		title+"\n%s\n\n%s",
 		userInputStyle.Render(input.View()),
-		"(Press " + userInputStyle.Render("Enter") + " to continue)",
+		"(Press "+userInputStyle.Render("Enter")+" to continue)",
 	) + "\n"
 }
 
