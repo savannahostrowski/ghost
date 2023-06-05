@@ -149,8 +149,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.currentView = Preload
 			}
 
-			if m.currentView == InputTasks && m.desiredTasks.Value() != "" {
+			if (m.currentView == InputTasks && m.desiredTasks.Value() != "") || (m.currentView == CorrectGHA && m.additionalProjectInfo.Value() != "" ) {
 				m.desiredTasks.Blur()
+				m.additionalProjectInfo.Blur()
 				m.currentView = LoadingGHA
 				cmds = append(cmds, func() tea.Msg {
 					prompt := fmt.Sprintf(`For a %v program, generate a GitHub Actions workflow that will include the following tasks: %v.
@@ -174,6 +175,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.currentView = CorrectGHA
 				}
 			}
+
 		}
 	}
 
