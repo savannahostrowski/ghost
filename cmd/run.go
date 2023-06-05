@@ -7,10 +7,12 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+
 	// "github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
@@ -38,6 +40,7 @@ const (
 	hotPink = lipgloss.Color("#ff69b7")
 	purple  = lipgloss.Color("#bd93f9")
 	red     = lipgloss.Color("#ff5555")
+	grey   = lipgloss.Color("#44475a")
 )
 
 var (
@@ -46,6 +49,7 @@ var (
 	itemStyle      = lipgloss.NewStyle().PaddingLeft(2)
 	selectedStyle  = lipgloss.NewStyle().PaddingLeft(2).Foreground(purple)
 	errorStyle     = lipgloss.NewStyle().Foreground(red)
+	helpStyle	  = lipgloss.NewStyle().Foreground(grey)
 )
 
 type View int64
@@ -101,6 +105,9 @@ func initialModel() model {
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(hotPink).
 		PaddingRight(2)
+	vp.KeyMap.Up = key.NewBinding(key.WithKeys("j"))
+	vp.KeyMap.Down = key.NewBinding(key.WithKeys("k"))
+
 
 	return model{
 		additionalProjectInfo: additionalInfo,
@@ -138,17 +145,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			panic(fmt.Sprintf("unexpected view: %v", m.currentView))
 		}
 	case tea.KeyMsg:
-		if msg.String() == "ctrl+c" || msg.String() == "q" || msg.String() == "esc" {
+		switch msg.String() {
+		case "ctrl+c", "q", "esc":
 			m.quitting = true
 			return m, tea.Quit
-		}
-		if msg.String() == "up" && m.choice == "no" {
-			m.choice = "yes"
-		}
-		if msg.String() == "down" && m.choice == "yes" {
-			m.choice = "no"
-		}
-		if msg.String() == "enter" {
+		case "up":
+			if m.choice == "no" {
+				m.choice = "yes"
+			}
+		case "down":
+			if m.choice == "yes" {
+				m.choice = "no"
+			}
+		case "enter":
 			switch m.currentView {
 			case ConfirmLanguages:
 				if m.choice == "yes" {
@@ -204,7 +213,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.currentView = CorrectGHA
 				}
 			}
-
+		default:
+			var viewportCmd tea.Cmd
+			m.viewport, viewportCmd = m.viewport.Update(msg)
+			cmds = append(cmds, viewportCmd)
 		}
 
 	default:
@@ -239,13 +251,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var spinCmd tea.Cmd
 	var tasksCmd tea.Cmd
 	var additionalInfoCmd tea.Cmd
-	var viewportCmd tea.Cmd
 	m.spinner, spinCmd = m.spinner.Update(msg)
 	m.desiredTasks, tasksCmd = m.desiredTasks.Update(msg)
 	m.additionalProjectInfo, additionalInfoCmd = m.additionalProjectInfo.Update(msg)
-	m.viewport, viewportCmd = m.viewport.Update(msg)
 
-	cmds = append(cmds, spinCmd, tasksCmd, additionalInfoCmd, viewportCmd)
+	cmds = append(cmds, spinCmd, tasksCmd, additionalInfoCmd)
 	return m, tea.Batch(cmds...)
 }
 
@@ -306,7 +316,6 @@ func (m model) View() string {
 }
 
 type gptResponse string
-
 func chatGPTRequest(prompt string) (response gptResponse, err error) {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	client := openai.NewClient(apiKey)
@@ -357,6 +366,7 @@ func confirmationView(m model, title string, yesText string, noText string, isGH
 
 		return title +
 			m.viewport.View() + "\n" +
+			helpStyle.Render("  j/k: Scroll \n")+ "\n" +
 			"How does this look?" + "\n" + yes + "\n" + no
 	} else {
 		return title + yes + "\n" + no
@@ -366,6 +376,7 @@ func confirmationView(m model, title string, yesText string, noText string, isGH
 func errorView(m model) string {
 	return errorStyle.Render(m.err.Error())
 }
+
 func getFilesInCurrentDirAndSubDirs() []string {
 	files := []string{}
 	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
