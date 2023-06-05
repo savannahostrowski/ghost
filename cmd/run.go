@@ -33,12 +33,14 @@ type model struct {
 
 const (
 	hotPink = lipgloss.Color("#ff69b7")
+	purple  = lipgloss.Color("#bd93f9")
 )
 
 var (
 	gptResultStyle = lipgloss.NewStyle().Foreground(hotPink)
+	userInputStyle = lipgloss.NewStyle().Foreground(purple)
 	itemStyle      = lipgloss.NewStyle().PaddingLeft(2)
-	selectedStyle  = lipgloss.NewStyle().PaddingLeft(2).Foreground(hotPink)
+	selectedStyle  = lipgloss.NewStyle().PaddingLeft(2).Foreground(purple)
 )
 
 type View int64
@@ -214,7 +216,13 @@ func (m model) View() string {
 			log.Error("Error: detected languages is empty")
 			return ""
 		}
-		return languageConfirmationView(m)
+		return confirmationView(
+			m,
+			fmt.Sprintf("%v Ghost detected the following languages in your codebase: %v. Is this correct?\n", emoji.Ghost, gptResultStyle.Render(m.detectedLanguages)),
+			"Yes",
+			"No - I want to correct the languages Ghost detected",
+			false,
+			"")
 	}
 
 	if m.currentView == CorrectLanguages {
@@ -222,7 +230,7 @@ func (m model) View() string {
 			log.Error("Error: detected languages is empty")
 			return ""
 		}
-		return correctLanguagesView(m)
+		return textInputView(m, "Oops! Let's try again. What languages are being used in this project?", m.additionalProjectInfo)
 	}
 
 	if m.currentView == InputTasks {
@@ -230,7 +238,7 @@ func (m model) View() string {
 			log.Error("Error: detected languages is empty")
 			return ""
 		}
-		return giveTasksView(m)
+		return textInputView(m, fmt.Sprintf("%v What tasks should Ghost included in your GitHub Action workflow?\n", emoji.Ghost), m.desiredTasks)
 	}
 
 	if m.currentView == GenerateGHA {
@@ -238,7 +246,12 @@ func (m model) View() string {
 			log.Error("Error: detected languages or desired tasks is empty")
 			return ""
 		}
-		return generateGHAView(m)
+		return confirmationView(m,
+			fmt.Sprintf("%v Ghost generated a GitHub Actions workflow. What next?\n", emoji.Ghost),
+			"Great! Output to .github/workflows/ghost.yml",
+			"I want Ghost to refine to generated GHA workflow",
+			true,
+			m.GHAWorkflow)
 	}
 
 	if m.currentView == CorrectGHA {
@@ -246,32 +259,13 @@ func (m model) View() string {
 			log.Error("Error: detected languages or desired tasks is empty")
 			return ""
 		}
-		return correctGHAView(m)
+		return textInputView(m, "Oops! Let's try again. What tasks should be included in the GitHub Action workflow?", m.additionalProjectInfo)
 	}
 
 	if m.err != nil {
 		log.Error("Error: %v\n", m.err)
 	}
 	return fmt.Sprintf("%v You successfully generated a GitHub Action workflow with Ghost! Goodbye!", emoji.Ghost)
-}
-
-func getFilesInCurrentDirAndSubDirs() []string {
-	files := []string{}
-	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
-		if path[0] == '.' {
-			return nil
-		}
-
-		if !info.IsDir() {
-			files = append(files, path)
-		}
-		return nil
-	})
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	return files
 }
 
 func chatGPTRequest(prompt string) (response string, err error) {
@@ -301,66 +295,52 @@ func chatGPTRequest(prompt string) (response string, err error) {
 	}
 }
 
-func languageConfirmationView(m model) string {
-	var yes, no string
-	langs := gptResultStyle.Render(m.detectedLanguages)
-	title := fmt.Sprintf("%v Ghost detected the following languages in your codebase: %v. Is this correct?\n", emoji.Ghost, langs)
+func textInputView(m model, title string, input textinput.Model) string {
+	return fmt.Sprintf(
+		title+"\n%s\n\n%s",
+		userInputStyle.Render(input.View()),
+		"(Press Enter to continue)",
+	) + "\n"
+}
 
+func confirmationView(m model, title string, yesText string, noText string, isGHAOutput bool, content string) string {
+	var yes, no string
 	if m.choice == "yes" {
-		yes = selectedStyle.Render("> Yes")
-		no = itemStyle.Render("No, I want to Ghost to refine its response")
+		yes = selectedStyle.Render("> " + yesText)
+		no = itemStyle.Render(noText)
 	} else {
-		yes = itemStyle.Render("Yes")
-		no = selectedStyle.Render("> No, I want to Ghost to refine its response")
+		yes = itemStyle.Render(yesText)
+		no = selectedStyle.Render("> " + noText)
 	}
 
-	return title + yes + "\n" + no
-}
-
-func giveTasksView(m model) string {
-	title := fmt.Sprintf("%v Ghost wants to know if there any specific tasks do you want to do in your GHA (e.g. linting, run tests)?\n", emoji.Ghost)
-	return fmt.Sprintf(
-		title+"\n%s\n\n%s",
-		m.desiredTasks.View(),
-		"(Press Enter to continue)",
-	) + "\n"
-}
-
-func correctLanguagesView(m model) string {
-	title := fmt.Sprintf("%v Oops, tell Ghost more about the languages used in your project!\n", emoji.Ghost)
-	return fmt.Sprintf(
-		title+"\n%s\n\n%s",
-		m.additionalProjectInfo.View(),
-		"(Press Enter to continue)",
-	) + "\n"
-}
-
-func generateGHAView(m model) string {
-	var yes, no string
-	title := fmt.Sprintf("%v Ghost generated this GitHub Actions workflow for your project...\n\n\n", emoji.Ghost)
-
-	if m.choice == "yes" {
-		yes = selectedStyle.Render("> Great! Output to .github/workflows/ghost.yml")
-		no = itemStyle.Render("I want Ghost to refine to generated GHA workflow")
+	if isGHAOutput {
+		return title +
+			"----------------------------------------\n" +
+			gptResultStyle.Render(content) + "\n" +
+			"----------------------------------------\n" +
+			"How does this look?" + "\n" + yes + "\n" + no
 	} else {
-		yes = itemStyle.Render("Great! Output to .github/workflows/ghost.yml")
-		no = selectedStyle.Render("> I want Ghost to refine to generated GHA workflow")
+		return title + yes + "\n" + no
 	}
-
-	return title +
-	"----------------------------------------\n" +
-	 gptResultStyle.Render(m.GHAWorkflow) + "\n" +
-	 "----------------------------------------\n" +
-	 "How does this look?" + "\n" + yes + "\n" + no
 }
 
-func correctGHAView(m model) string {
-	title := fmt.Sprintf("%v Oops, tell Ghost more about the tasks you want to do in your GHA!\n", emoji.Ghost)
-	return fmt.Sprintf(
-		title+"\n%s\n\n%s",
-		m.additionalProjectInfo.View(),
-		"(Press Enter to continue)",
-	) + "\n"
+func getFilesInCurrentDirAndSubDirs() []string {
+	files := []string{}
+	err := filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
+		if path[0] == '.' {
+			return nil
+		}
+
+		if !info.IsDir() {
+			files = append(files, path)
+		}
+		return nil
+	})
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	return files
 }
 
 func writeGHAWorkflowToFile(gha string) {
@@ -379,6 +359,6 @@ func writeGHAWorkflowToFile(gha string) {
 		log.Error("Error creating ghost.yml file")
 		return
 	}
-	
+
 	ioutil.WriteFile(filename, []byte(gha), 0644)
 }
