@@ -262,7 +262,7 @@ func (m model) View() string {
 			return ""
 		}
 		return confirmationView(m,
-			fmt.Sprintf("%v Ghost generated a GitHub Actions workflow. What next?\n", emoji.Ghost),
+			fmt.Sprintf("%v Ghost generated a GitHub Actions workflow. What should we do next?\n", emoji.Ghost),
 			"Great! Output to .github/workflows/ghost.yml",
 			"I want Ghost to refine to generated GHA workflow",
 			true,
