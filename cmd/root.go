@@ -1,13 +1,16 @@
 package cmd
 
 import (
+	"fmt"
+
+	"github.com/enescakir/emoji"
 	"github.com/spf13/cobra"
 )
 
 var (
 	rootCmd = &cobra.Command{
 		Use:   "ghost",
-		Short: "A CLI that uses AI to help scaffold a GitHub Actions workflow for your codebase",
+		Short: fmt.Sprintf("\n%v Ghost is an experimental CLI that intelligently scaffolds a GitHub Action workflow based on your local application stack and natural language, using OpenAI.", emoji.Ghost),
 	}
 )
 
@@ -16,7 +19,6 @@ func Execute() error {
 }
 
 func init() {
+	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	rootCmd.AddCommand(runCmd)
-
-	runCmd.LocalFlags().String("repo", "", "URL to a GitHub repository to use")
 }
