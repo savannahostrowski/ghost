@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -74,12 +73,10 @@ var runCmd = &cobra.Command{
 
 // Initialize the Bubble Tea model
 func initialModel() model {
-	// Initialize the spinner for loading
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(hotPink)
 
-	// Initialize the text input for desired tasks in the GHA
 	ti := textinput.New()
 	ti.Placeholder = "Enter desired tasks to include in your GHA"
 	ti.CharLimit = 300
@@ -154,6 +151,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.currentView == Goodbye {
+		time.Sleep(2 * time.Second)
 		return m, tea.Quit
 	}
 
@@ -220,7 +218,7 @@ func (m model) View() string {
 			m,
 			fmt.Sprintf("%v Ghost detected the following languages in your codebase: %v. Is this correct?\n", emoji.Ghost, gptResultStyle.Render(m.detectedLanguages)),
 			"Yes",
-			"No - I want to correct the languages Ghost detected",
+			"No - I want to correct the language(s) Ghost detected",
 			false,
 			"")
 	}
@@ -238,7 +236,7 @@ func (m model) View() string {
 			log.Error("Error: detected languages is empty")
 			return ""
 		}
-		return textInputView(m, fmt.Sprintf("%v What tasks should Ghost included in your GitHub Action workflow?\n", emoji.Ghost), m.desiredTasks)
+		return textInputView(m, fmt.Sprintf("%v What tasks should Ghost include in your GitHub Action workflow?\n", emoji.Ghost), m.desiredTasks)
 	}
 
 	if m.currentView == GenerateGHA {
@@ -262,10 +260,14 @@ func (m model) View() string {
 		return textInputView(m, "Oops! Let's try again. What tasks should be included in the GitHub Action workflow?", m.additionalProjectInfo)
 	}
 
+	if m.currentView == Goodbye {
+		return fmt.Sprintf("%v You successfully generated a GitHub Action workflow with Ghost (in .github/workflows/). Goodbye!", emoji.Ghost)
+	}
+
 	if m.err != nil {
 		log.Error("Error: %v\n", m.err)
 	}
-	return fmt.Sprintf("%v You successfully generated a GitHub Action workflow with Ghost! Goodbye!", emoji.Ghost)
+	return ""
 }
 
 func chatGPTRequest(prompt string) (response string, err error) {
@@ -299,7 +301,7 @@ func textInputView(m model, title string, input textinput.Model) string {
 	return fmt.Sprintf(
 		title+"\n%s\n\n%s",
 		userInputStyle.Render(input.View()),
-		"(Press Enter to continue)",
+		"(Press " + userInputStyle.Render("Enter") + " to continue)",
 	) + "\n"
 }
 
@@ -360,5 +362,5 @@ func writeGHAWorkflowToFile(gha string) {
 		return
 	}
 
-	ioutil.WriteFile(filename, []byte(gha), 0644)
+	os.WriteFile(filename, []byte(gha), 0644)
 }
