@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"golang.org/x/term"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
@@ -96,7 +97,9 @@ func initialModel() model {
 	additionalInfo.CharLimit = 300
 	additionalInfo.Width = 300
 
-	vp := viewport.New(78, 20)
+	width, height, _ := term.GetSize(0)
+
+	vp := viewport.New(width - width/3, height - height/3 )
 	vp.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(hotPink).
