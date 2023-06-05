@@ -13,13 +13,11 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
-	// "github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
 	"github.com/enescakir/emoji"
 	"github.com/sashabaranov/go-openai"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 type model struct {
@@ -40,7 +38,7 @@ const (
 	hotPink = lipgloss.Color("#ff69b7")
 	purple  = lipgloss.Color("#bd93f9")
 	red     = lipgloss.Color("#ff5555")
-	grey   = lipgloss.Color("#44475a")
+	grey    = lipgloss.Color("#44475a")
 )
 
 var (
@@ -49,7 +47,7 @@ var (
 	itemStyle      = lipgloss.NewStyle().PaddingLeft(2)
 	selectedStyle  = lipgloss.NewStyle().PaddingLeft(2).Foreground(purple)
 	errorStyle     = lipgloss.NewStyle().Foreground(red)
-	helpStyle	  = lipgloss.NewStyle().Foreground(grey)
+	helpStyle      = lipgloss.NewStyle().Foreground(grey)
 )
 
 type View int64
@@ -76,14 +74,12 @@ var runCmd = &cobra.Command{
 		p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseAllMotion())
 
 		if _, err := p.Run(); err != nil {
-			log.Fatal("Error running program: ", err)
+			log.Fatal("Yikes! We've run into a problem: ", err)
 			os.Exit(1)
 		}
 
 	},
 }
-
-var width, height, _ = term.GetSize(0)
 
 func initialModel() model {
 	s := spinner.New()
@@ -100,14 +96,13 @@ func initialModel() model {
 	additionalInfo.CharLimit = 300
 	additionalInfo.Width = 300
 
-	vp := viewport.New(width, height)
+	vp := viewport.New(78, 20)
 	vp.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(hotPink).
 		PaddingRight(2)
 	vp.KeyMap.Up = key.NewBinding(key.WithKeys("j"))
 	vp.KeyMap.Down = key.NewBinding(key.WithKeys("k"))
-
 
 	return model{
 		additionalProjectInfo: additionalInfo,
@@ -213,7 +208,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.currentView = CorrectGHA
 				}
 			}
-		default:
+		case "j", "k":
 			var viewportCmd tea.Cmd
 			m.viewport, viewportCmd = m.viewport.Update(msg)
 			cmds = append(cmds, viewportCmd)
@@ -295,7 +290,7 @@ func (m model) View() string {
 			return ""
 		}
 		return confirmationView(m,
-			fmt.Sprintf("%v Ghost generated a GitHub Actions workflow. What should we do next?\n", emoji.Ghost),
+			"",
 			"Great! Output to .github/workflows/ghost.yml",
 			"I want Ghost to refine to generated GHA workflow",
 			true,
@@ -316,6 +311,7 @@ func (m model) View() string {
 }
 
 type gptResponse string
+
 func chatGPTRequest(prompt string) (response gptResponse, err error) {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	client := openai.NewClient(apiKey)
@@ -366,8 +362,8 @@ func confirmationView(m model, title string, yesText string, noText string, isGH
 
 		return title +
 			m.viewport.View() + "\n" +
-			helpStyle.Render("  j/k: Scroll \n")+ "\n" +
-			"How does this look?" + "\n" + yes + "\n" + no
+			helpStyle.Render("  j/k: Scroll \n") + "\n" +
+			fmt.Sprintf("%v Ghost created this GitHub Action. How does it look?", emoji.Ghost) + "\n" + yes + "\n" + no
 	} else {
 		return title + yes + "\n" + no
 	}
