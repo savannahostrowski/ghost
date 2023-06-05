@@ -52,6 +52,7 @@ const (
 	CorrectGHA               View = 5
 	LoadingDetectedLanguages View = 6
 	LoadingGHA               View = 7
+	Goodbye                  View = 8
 )
 
 var runCmd = &cobra.Command{
@@ -141,14 +142,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.currentView == GenerateGHA {
 				if m.choice == "yes" {
 					writeGHAWorkflowToFile(m.GHAWorkflow)
-					fmt.Println("Successfully generated a GHA workflow!")
-					return m, tea.Quit
+					m.currentView = Goodbye
 				} else {
 					m.additionalProjectInfo.Focus()
 					m.currentView = CorrectGHA
 				}
 			}
 		}
+	}
+
+	if m.currentView == Goodbye {
+		return m, tea.Quit
 	}
 
 	if m.currentView == LoadingDetectedLanguages {
@@ -172,7 +176,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.currentView = ConfirmLanguages
 	}
 
-	if m.currentView == LoadingGHA && m.GHAWorkflow == "" {
+	if m.currentView == LoadingGHA {
 		prompt := fmt.Sprintf(`For a %v program, generate a GitHub Actions workflow that will include the following tasks: %v.
 		Name it "Ghost-generated pipeline". Have it run on push to master or main, unless the user specified otherwise.
 		Leave placeholders for things like version and at the end of generating the GitHub Action, tell the user what their next steps should be`,
@@ -202,8 +206,7 @@ func (m model) View() string {
 	}
 
 	if m.currentView == LoadingGHA {
-		fmt.Printf("load gha")
-		return m.spinner.View() + "Generating GHA workflow..."
+		return m.spinner.View() + "Generating a GitHub Actions workflow...This might take a couple minutes."
 	}
 
 	if m.currentView == ConfirmLanguages {
@@ -249,7 +252,7 @@ func (m model) View() string {
 	if m.err != nil {
 		log.Error("Error: %v\n", m.err)
 	}
-	return ""
+	return fmt.Sprintf("%v You successfully generated a GitHub Action workflow with Ghost! Goodbye!", emoji.Ghost)
 }
 
 func getFilesInCurrentDirAndSubDirs() []string {
@@ -334,7 +337,7 @@ func correctLanguagesView(m model) string {
 
 func generateGHAView(m model) string {
 	var yes, no string
-	title := fmt.Sprintf("%v Ghost generated this GitHub Actions workflow for your project...\n", emoji.Ghost)
+	title := fmt.Sprintf("%v Ghost generated this GitHub Actions workflow for your project...\n\n\n", emoji.Ghost)
 
 	if m.choice == "yes" {
 		yes = selectedStyle.Render("> Great! Output to .github/workflows/ghost.yml")
@@ -344,8 +347,10 @@ func generateGHAView(m model) string {
 		no = selectedStyle.Render("> I want Ghost to refine to generated GHA workflow")
 	}
 
-	return title + "\n" +
+	return title +
+	"----------------------------------------\n" +
 	 gptResultStyle.Render(m.GHAWorkflow) + "\n" +
+	 "----------------------------------------\n" +
 	 "How does this look?" + "\n" + yes + "\n" + no
 }
 
