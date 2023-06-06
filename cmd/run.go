@@ -12,7 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"golang.org/x/term"
+	// "golang.org/x/term"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
@@ -49,6 +49,7 @@ var (
 	selectedStyle  = lipgloss.NewStyle().PaddingLeft(2).Foreground(purple)
 	errorStyle     = lipgloss.NewStyle().Foreground(red)
 	helpStyle      = lipgloss.NewStyle().Foreground(grey)
+	viewportStyle  = lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(hotPink).PaddingRight(2)
 )
 
 type View int64
@@ -88,24 +89,21 @@ func initialModel() model {
 	s.Style = lipgloss.NewStyle().Foreground(hotPink)
 
 	ti := textinput.New()
-	ti.Placeholder = "Enter desired tasks to include in your GHA"
+	ti.Placeholder = "Enter some tasks"
 	ti.CharLimit = 300
 	ti.Width = 300
 
 	additionalInfo := textinput.New()
-	additionalInfo.Placeholder = "Enter any additional information about your project"
+	additionalInfo.Placeholder = "Tell Ghost more about your project"
 	additionalInfo.CharLimit = 300
 	additionalInfo.Width = 300
 
-	width, height, _ := term.GetSize(0)
-
-	vp := viewport.New(width - width/3, height - height/3 )
-	vp.Style = lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(hotPink).
-		PaddingRight(2)
-	vp.KeyMap.Up = key.NewBinding(key.WithKeys("j"))
-	vp.KeyMap.Down = key.NewBinding(key.WithKeys("k"))
+	// width, height, _ := term.GetSize(0)
+	vp := viewport.New(0, 0)
+	vp.Style = viewportStyle
+	vp.YPosition = 0
+	vp.KeyMap.Up = key.NewBinding(key.WithKeys("w"))
+	vp.KeyMap.Down = key.NewBinding(key.WithKeys("s"))
 
 	return model{
 		additionalProjectInfo: additionalInfo,
@@ -136,9 +134,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.currentView = ConfirmLanguages
 		case LoadingGHA:
 			m.GHAWorkflow = string(msg)
+			m.viewport.SetContent(m.GHAWorkflow)
 			m.desiredTasks.SetValue("")
 			m.currentView = GenerateGHA
-
 		default:
 			panic(fmt.Sprintf("unexpected view: %v", m.currentView))
 		}
@@ -169,6 +167,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case CorrectLanguages:
 				if m.additionalProjectInfo.Value() != "" {
 					m.currentView = Preload
+					m.choice = "yes"
 				}
 			case InputTasks:
 				if m.desiredTasks.Value() != "" {
@@ -211,12 +210,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.currentView = CorrectGHA
 				}
 			}
-		case "j", "k":
-			var viewportCmd tea.Cmd
-			m.viewport, viewportCmd = m.viewport.Update(msg)
-			cmds = append(cmds, viewportCmd)
 		}
-
+	case tea.WindowSizeMsg:
+		m.viewport.Width = msg.Width
+		m.viewport.Height = msg.Height - msg.Height/3
 	default:
 		switch m.currentView {
 		case Preload:
@@ -249,11 +246,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var spinCmd tea.Cmd
 	var tasksCmd tea.Cmd
 	var additionalInfoCmd tea.Cmd
+	var viewportCmd tea.Cmd
+	m.viewport, viewportCmd = m.viewport.Update(msg)
 	m.spinner, spinCmd = m.spinner.Update(msg)
 	m.desiredTasks, tasksCmd = m.desiredTasks.Update(msg)
 	m.additionalProjectInfo, additionalInfoCmd = m.additionalProjectInfo.Update(msg)
 
-	cmds = append(cmds, spinCmd, tasksCmd, additionalInfoCmd)
+	cmds = append(cmds, spinCmd, tasksCmd, additionalInfoCmd, viewportCmd)
 	return m, tea.Batch(cmds...)
 }
 
@@ -262,7 +261,7 @@ func (m model) View() string {
 	case LoadingDetectedLanguages:
 		return m.spinner.View() + "Detecting languages..."
 	case LoadingGHA:
-		return m.spinner.View() + "Generating a GitHub Actions workflow...This might take a couple minutes."
+		return m.spinner.View() + "Generating a GitHub Actions workflow...This might take a couple of minutes."
 	case ConfirmLanguages:
 		if len(m.detectedLanguages) == 0 {
 			log.Error("Error: detected languages is empty")
@@ -280,13 +279,13 @@ func (m model) View() string {
 			log.Error("Error: detected languages is empty")
 			return ""
 		}
-		return textInputView(m, "Oops! Let's try again. What languages are being used in this project?", m.additionalProjectInfo)
+		return textInputView(m, fmt.Sprintf("%v Oops! Let's try again. What languages are being used in this project?", emoji.Ghost), m.additionalProjectInfo)
 	case InputTasks:
 		if len(m.detectedLanguages) == 0 {
 			log.Error("Error: detected languages is empty")
 			return ""
 		}
-		return textInputView(m, fmt.Sprintf("%v What tasks should Ghost include in your GitHub Action workflow?\n", emoji.Ghost), m.desiredTasks)
+		return textInputView(m, fmt.Sprintf("%v What tasks should Ghost include in your GitHub Action workflow?", emoji.Ghost), m.desiredTasks)
 	case GenerateGHA:
 		if len(m.GHAWorkflow) == 0 {
 			log.Error("Error: detected languages or desired tasks is empty")
@@ -344,7 +343,7 @@ func chatGPTRequest(prompt string) (response gptResponse, err error) {
 
 func textInputView(m model, title string, input textinput.Model) string {
 	return fmt.Sprintf(
-		title+"\n%s\n\n%s",
+		title+"\n\n%s\n\n%s",
 		userInputStyle.Render(input.View()),
 		"(Press "+userInputStyle.Render("Enter")+" to continue)",
 	) + "\n"
@@ -361,11 +360,9 @@ func confirmationView(m model, title string, yesText string, noText string, isGH
 	}
 
 	if isGHAOutput {
-		m.viewport.SetContent(content)
-
 		return title +
 			m.viewport.View() + "\n" +
-			helpStyle.Render("  j/k: Scroll \n") + "\n" +
+			helpStyle.Render("   ↑w/↓s: Scroll (or use your mouse) \n") + "\n" +
 			fmt.Sprintf("%v Ghost created this GitHub Action. How does it look?", emoji.Ghost) + "\n" + yes + "\n" + no
 	} else {
 		return title + yes + "\n" + no

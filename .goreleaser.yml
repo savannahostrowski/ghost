@@ -1,0 +1,15 @@
+project_name: "ghost"
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+
+builds:
+  - main: ./main.go
+    binary: gruyere
+    goos:
+      - linux
+      - darwin
+    goarm:
+      - "7"
