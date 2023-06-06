@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+
 	// "golang.org/x/term"
 
 	"github.com/charmbracelet/lipgloss"
@@ -19,6 +20,7 @@ import (
 	"github.com/enescakir/emoji"
 	"github.com/sashabaranov/go-openai"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 type model struct {
@@ -70,16 +72,24 @@ const (
 
 var runCmd = &cobra.Command{
 	Use:   "run",
-	Short: fmt.Sprintf("%v Run the Ghost CLI", emoji.Rocket),
+	Short: "Run Ghost CLI",
 	Run: func(cmd *cobra.Command, args []string) {
+		err := viper.ReadInConfig()
+		if err != nil {
+			panic(fmt.Errorf("fatal error config file: %w", err))
+		}
+
+		if !viper.IsSet("OPENAI_API_KEY") {
+			log.Error("Please set OPENAI_API_KEY in your environment using `ghost config set OPENAI_API_KEY <your key>`")
+			os.Exit(1)
+		}
+
 		m := initialModel()
 		p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseAllMotion())
-
 		if _, err := p.Run(); err != nil {
 			log.Fatal("Yikes! We've run into a problem: ", err)
 			os.Exit(1)
 		}
-
 	},
 }
 
@@ -98,7 +108,6 @@ func initialModel() model {
 	additionalInfo.CharLimit = 300
 	additionalInfo.Width = 300
 
-	// width, height, _ := term.GetSize(0)
 	vp := viewport.New(0, 0)
 	vp.Style = viewportStyle
 	vp.YPosition = 0
@@ -171,7 +180,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.choice = "yes"
 				}
 			// View to allow the user to specify what tasks they'd like to do in their pipeline
-			case InputTasks, CorrectGHA :
+			case InputTasks, CorrectGHA:
 				if m.desiredTasks.Value() != "" {
 					m.currentView = LoadingGHA
 					cmds = append(cmds, func() tea.Msg {
@@ -202,6 +211,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	default:
 		switch m.currentView {
 		case Preload:
+
 			if len(m.files) == 0 {
 				m.files = getFilesInCurrentDirAndSubDirs()
 			}
@@ -300,7 +310,8 @@ func (m model) View() string {
 type gptResponse string
 
 func chatGPTRequest(prompt string) (response gptResponse, err error) {
-	apiKey := os.Getenv("OPENAI_API_KEY")
+	viper.ReadInConfig()
+	apiKey := viper.GetString("openai_api_key")
 	client := openai.NewClient(apiKey)
 	resp, err := client.CreateChatCompletion(
 		context.Background(),

@@ -9,7 +9,8 @@
 			"extensions": [
 				"golang.go",
 				"github.vscode-github-actions",
-				"ms-azuretools.vscode-docker"
+				"ms-azuretools.vscode-docker",
+				"github.copilot"
 			]
 		}
 	}

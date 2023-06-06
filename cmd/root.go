@@ -1,13 +1,18 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/enescakir/emoji"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
+	cfgFile string
 	rootCmd = &cobra.Command{
 		Use:   "ghost",
 		Short: fmt.Sprintf("\n%v Ghost is an experimental CLI that intelligently scaffolds a GitHub Action workflow based on your local application stack and natural language, using OpenAI.", emoji.Ghost),
@@ -19,6 +24,39 @@ func Execute() error {
 }
 
 func init() {
+	cobra.OnInitialize(InitConfig)
+
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cobra.yaml)")
+	rootCmd.PersistentFlags().Bool("viper", true, "use Viper for configuration")
+
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
-	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(runCmd, configCmd)
+}
+
+func InitConfig() {
+	if cfgFile != "" {
+		viper.SetConfigFile(cfgFile)
+	} else {
+		configHome, err := os.UserHomeDir()
+		configName := ".ghost"
+		configType := "yaml"
+
+		cobra.CheckErr(err)
+		viper.AddConfigPath(configHome)
+		viper.SetConfigType(configType)
+		viper.SetConfigName(configName)
+		configPath := filepath.Join(configHome, configName+"."+configType)
+
+
+		if _, err := os.Stat(configPath); err == nil {
+			viper.AutomaticEnv()
+		} else if errors.Is(err, os.ErrNotExist) {
+			if err := viper.SafeWriteConfig(); err != nil {
+				if err != nil {
+					str := fmt.Sprintf("could not write config file: %v", err)
+					panic(str)
+				}
+			}
+		}
+	}
 }
