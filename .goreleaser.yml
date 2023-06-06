@@ -7,7 +7,7 @@ before:
 
 builds:
   - main: ./main.go
-    binary: gruyere
+    binary: ghost
     goos:
       - linux
       - darwin
