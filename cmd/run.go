@@ -49,7 +49,7 @@ var (
 	selectedStyle  = lipgloss.NewStyle().PaddingLeft(2).Foreground(purple)
 	errorStyle     = lipgloss.NewStyle().Foreground(red)
 	helpStyle      = lipgloss.NewStyle().Foreground(grey)
-	viewportStyle  = lipgloss.NewStyle().BorderStyle(lipgloss.RoundedBorder()).BorderForeground(hotPink).PaddingRight(2)
+	viewportStyle  = lipgloss.NewStyle().Foreground(hotPink)
 )
 
 type View int64
