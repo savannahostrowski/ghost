@@ -7,3 +7,16 @@ Ghost is an experimental CLI that intelligently scaffolds a GitHub Action workfl
 2. Run `ghost config set OPENAI_API_KEY <your key here>` with your key from step 1
 3. Run `ghost run` to start project analysis of the current working directory.
 
+Ghost uses:
+- [Bubble Tea](https://github.com/charmbracelet/bubbletea)
+- [Bubbles](https://github.com/charmbracelet/bubbles)
+- [Lip Gloss](https://github.com/charmbracelet/lipgloss)
+- [Log](https://github.com/charmbracelet/log)
+- [Cobra](https://github.com/spf13/cobra)
+- [Viper](https://github.com/spf13/viper)
+
+## Installation
+You can install the appropriate binary for your operating system by visiting the [Releases page](https://github.com/savannahostrowski/ghost/releases).
+
+## Contributing
+Contributions are welcome! To get started, check out the [contributing guidelines](CONTRIBUTING.md).
