@@ -11,6 +11,4 @@ Using file names and natural language, Ghost generates a GitHub Action skeleton.
 
 ## Upcoming features
 - Ability to set other models (currently uses GPT 3.5 Turbo)
-- Ability to analyze a remote repo (e.g. via GH URL)
-- Ability to custom name the file for the output GHA
 - VS Code extension
