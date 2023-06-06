@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/savannahostrowski/ghost/cmd"
-
 )
 
 func main() {
