@@ -1,7 +1,6 @@
 # Ghost 👻
-Ghost is an experimental CLI that intelligently scaffolds a GitHub Action workflow based on your local application stack, using OpenAI.
-
-Using file names and natural language, Ghost generates a GitHub Action skeleton.
+Ghost is an experimental CLI that intelligently scaffolds a GitHub Action workflow based on your local application stack and natural language, using OpenAI.
+![A screenshot of the Ghost UX flow](ghost.gif)
 
 ## Getting started
 1. First, you'll need to set up an [OpenAI API key](https://platform.openai.com/account/api-keys).
