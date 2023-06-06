@@ -135,7 +135,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case LoadingGHA:
 			m.GHAWorkflow = string(msg)
 			m.viewport.SetContent(m.GHAWorkflow)
-			m.desiredTasks.SetValue("")
 			m.currentView = GenerateGHA
 		default:
 			panic(fmt.Sprintf("unexpected view: %v", m.currentView))
@@ -155,6 +154,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "enter":
 			switch m.currentView {
+			// View to confirm that the detected languages are correct
 			case ConfirmLanguages:
 				if m.choice == "yes" {
 					m.additionalProjectInfo.Blur()
@@ -164,20 +164,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.additionalProjectInfo.Focus()
 					m.currentView = CorrectLanguages
 				}
+			// View to correct the detected languages (when Ghost was wrong or more details are needed)
 			case CorrectLanguages:
 				if m.additionalProjectInfo.Value() != "" {
 					m.currentView = Preload
 					m.choice = "yes"
 				}
-			case InputTasks:
+			// View to allow the user to specify what tasks they'd like to do in their pipeline
+			case InputTasks, CorrectGHA :
 				if m.desiredTasks.Value() != "" {
-					m.desiredTasks.Blur()
 					m.currentView = LoadingGHA
 					cmds = append(cmds, func() tea.Msg {
 						prompt := fmt.Sprintf(`For a %v program, generate a GitHub Actions workflow that will include the following tasks: %v.
-											   Name it "Ghost-generated pipeline". Have it run on push to master or main, unless the user specified otherwise.
-											   Leave placeholders for things like version and at the end of generating the GitHub Action, tell the user what their next steps should be`,
-							m.detectedLanguages, m.desiredTasks.Value())
+						Name it "Ghost-generated pipeline". Leave placeholders for things like version and at the end of generating the
+						GitHub Action, tell the user what their next steps should be in a comment`, m.detectedLanguages, m.desiredTasks.Value())
 						response, err := chatGPTRequest(prompt)
 						if err != nil {
 							log.Error(err)
@@ -185,22 +185,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return response
 					})
 				}
-			case CorrectGHA:
-				if m.additionalProjectInfo.Value() != "" {
-					m.additionalProjectInfo.Blur()
-					m.currentView = LoadingGHA
-					cmds = append(cmds, func() tea.Msg {
-						prompt := fmt.Sprintf(`For a %v program, generate a GitHub Actions workflow that will include the following tasks: %v.
-											   Name it "Ghost-generated pipeline". Have it run on push to master or main, unless the user specified otherwise.
-											   Leave placeholders for things like version and at the end of generating the GitHub Action, tell the user what their next steps should be`,
-							m.detectedLanguages, m.desiredTasks.Value())
-						response, err := chatGPTRequest(prompt)
-						if err != nil {
-							log.Error(err)
-						}
-						return response
-					})
-				}
+
 			case GenerateGHA:
 				if m.choice == "yes" {
 					writeGHAWorkflowToFile(m.GHAWorkflow)
@@ -302,7 +287,7 @@ func (m model) View() string {
 			log.Error("Error: detected languages or desired tasks is empty")
 			return ""
 		}
-		return textInputView(m, "Oops! Let's try again. What tasks should be included in the GitHub Action workflow?", m.additionalProjectInfo)
+		return textInputView(m, "Oops! Let's try again. Update the tasks should be included in the GitHub Action workflow?", m.desiredTasks)
 	case Goodbye:
 		return fmt.Sprintf("%v You successfully generated a GitHub Action workflow with Ghost (in .github/workflows/). Goodbye!", emoji.Ghost)
 	case Error:

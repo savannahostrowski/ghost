@@ -6,23 +6,12 @@ require github.com/sashabaranov/go-openai v1.9.5
 
 require github.com/enescakir/emoji v1.0.0
 
-require (
-	github.com/alecthomas/chroma v0.10.0 // indirect
-	github.com/atotto/clipboard v0.1.4 // indirect
-	github.com/aymerick/douceur v0.2.0 // indirect
-	github.com/dlclark/regexp2 v1.4.0 // indirect
-	github.com/gorilla/css v1.0.0 // indirect
-	github.com/microcosm-cc/bluemonday v1.0.21 // indirect
-	github.com/olekukonko/tablewriter v0.0.5 // indirect
-	github.com/yuin/goldmark v1.5.2 // indirect
-	github.com/yuin/goldmark-emoji v1.0.1 // indirect
-)
+require github.com/atotto/clipboard v0.1.4 // indirect
 
 require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/bubbles v0.16.1
 	github.com/charmbracelet/bubbletea v0.24.1
-	github.com/charmbracelet/glamour v0.6.0
 	github.com/charmbracelet/lipgloss v0.7.1
 	github.com/charmbracelet/log v0.2.2
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
@@ -39,9 +28,8 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/pflag v1.0.5 // indirect
-	golang.org/x/net v0.9.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.7.0 // indirect
-	golang.org/x/term v0.7.0
+	golang.org/x/term v0.7.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 )
