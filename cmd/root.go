@@ -53,8 +53,7 @@ func InitConfig() {
 		} else if errors.Is(err, os.ErrNotExist) {
 			if err := viper.SafeWriteConfig(); err != nil {
 				if err != nil {
-					str := fmt.Sprintf("could not write config file: %v", err)
-					panic(str)
+					panic(fmt.Sprintf("could not write config file: %v", err))
 				}
 			}
 		}

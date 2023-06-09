@@ -13,8 +13,6 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 
-	// "golang.org/x/term"
-
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
 	"github.com/enescakir/emoji"
@@ -163,7 +161,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "enter":
 			switch m.currentView {
-			// View to confirm that the detected languages are correct
+			// Confirm that the detected languages are correct
 			case ConfirmLanguages:
 				if m.choice == "yes" {
 					m.additionalProjectInfo.Blur()
@@ -173,13 +171,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.additionalProjectInfo.Focus()
 					m.currentView = CorrectLanguages
 				}
-			// View to correct the detected languages (when Ghost was wrong or more details are needed)
+			// Correct the detected languages (when Ghost was wrong or more details are needed)
 			case CorrectLanguages:
 				if m.additionalProjectInfo.Value() != "" {
 					m.currentView = Preload
 					m.choice = "yes"
 				}
-			// View to allow the user to specify what tasks they'd like to do in their pipeline
+			// Allow the user to specify what tasks they'd like to do in their pipeline
 			case InputTasks, CorrectGHA:
 				if m.desiredTasks.Value() != "" {
 					m.currentView = LoadingGHA
@@ -280,7 +278,7 @@ func (m model) View() string {
 			log.Error("Error: detected languages is empty")
 			return ""
 		}
-		return textInputView(m, fmt.Sprintf("%v What tasks should Ghost include in your GitHub Action workflow?", emoji.Ghost), m.desiredTasks)
+		return textInputView(m, fmt.Sprintf("%v What tasks should Ghost include in your GitHub Actions workflow?", emoji.Ghost), m.desiredTasks)
 	case GenerateGHA:
 		if len(m.GHAWorkflow) == 0 {
 			log.Error("Error: detected languages or desired tasks is empty")
@@ -289,7 +287,7 @@ func (m model) View() string {
 		return confirmationView(m,
 			"",
 			"Great! Output to .github/workflows/ghost.yml",
-			"I want Ghost to refine to generated GHA workflow",
+			"I want Ghost to refine to generated GitHub Actions workflow",
 			true,
 			m.GHAWorkflow)
 	case CorrectGHA:

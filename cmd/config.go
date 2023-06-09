@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/charmbracelet/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -47,7 +46,7 @@ var getCmd = &cobra.Command{
 		config, err := loadConfig(path)
 
 		if err != nil {
-			log.Fatal("cannot load config:", err)
+			panic(fmt.Errorf("cannot load config file: %w", err))
 		}
 		fmt.Println("OPENAI_API_KEY=",config.OpenAIAPIKey)
 
