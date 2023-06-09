@@ -1,5 +1,6 @@
 # Ghost 👻
 Ghost is an experimental CLI that intelligently scaffolds a GitHub Action workflow based on your local application stack and natural language, using OpenAI.
+
 ![A screenshot of the Ghost UX flow](ghost.gif)
 
 ## Getting started
