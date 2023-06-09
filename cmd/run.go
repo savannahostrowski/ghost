@@ -182,7 +182,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.desiredTasks.Value() != "" {
 					m.currentView = LoadingGHA
 					cmds = append(cmds, func() tea.Msg {
-						prompt := fmt.Sprintf(`For a %v program, generate a GitHub Actions workflow that will include the following tasks: %v.
+						prompt := fmt.Sprintf(`For a %v program, generate a GitHub Action workflow that will include the following tasks: %v.
 						Name it "Ghost-generated pipeline". Leave placeholders for things like version and at the end of generating the
 						GitHub Action, tell the user what their next steps should be in a comment`, m.detectedLanguages, m.desiredTasks.Value())
 						response, err := chatGPTRequest(prompt)
@@ -254,7 +254,7 @@ func (m model) View() string {
 	case LoadingDetectedLanguages:
 		return m.spinner.View() + "Detecting languages..."
 	case LoadingGHA:
-		return m.spinner.View() + "Generating a GitHub Actions workflow...This might take a couple of minutes."
+		return m.spinner.View() + "Generating a GitHub Action workflow...This might take a couple of minutes."
 	case ConfirmLanguages:
 		if len(m.detectedLanguages) == 0 {
 			log.Error("Error: detected languages is empty")
@@ -278,7 +278,7 @@ func (m model) View() string {
 			log.Error("Error: detected languages is empty")
 			return ""
 		}
-		return textInputView(m, fmt.Sprintf("%v What tasks should Ghost include in your GitHub Actions workflow?", emoji.Ghost), m.desiredTasks)
+		return textInputView(m, fmt.Sprintf("%v What tasks should Ghost include in your GitHub Action workflow?", emoji.Ghost), m.desiredTasks)
 	case GenerateGHA:
 		if len(m.GHAWorkflow) == 0 {
 			log.Error("Error: detected languages or desired tasks is empty")
@@ -287,7 +287,7 @@ func (m model) View() string {
 		return confirmationView(m,
 			"",
 			"Great! Output to .github/workflows/ghost.yml",
-			"I want Ghost to refine to generated GitHub Actions workflow",
+			"I want Ghost to refine to generated GitHub Action workflow",
 			true,
 			m.GHAWorkflow)
 	case CorrectGHA:
