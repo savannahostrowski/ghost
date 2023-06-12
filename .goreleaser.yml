@@ -14,3 +14,7 @@ builds:
       - windows
     goarm:
       - "7"
+archives:
+  - format_overrides:
+      - goos: windows
+        format: zip
