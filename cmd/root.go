@@ -33,9 +33,6 @@ func Execute() error {
 func init() {
 	cobra.OnInitialize(InitConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.cobra.yaml)")
-	rootCmd.PersistentFlags().Bool("viper", true, "use Viper for configuration")
-
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	rootCmd.AddCommand(runCmd, configCmd)
   rootCmd.AddCommand(versionCmd)
