@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -310,11 +311,18 @@ type gptResponse string
 func chatGPTRequest(prompt string) (response gptResponse, err error) {
 	viper.ReadInConfig()
 	apiKey := viper.GetString("openai_api_key")
+	enableGPT4, _ := strconv.ParseBool(viper.GetString("enable_gpt_4"))
+	var model string
+	if enableGPT4 {
+		model = openai.GPT4
+	} else {
+		model = openai.GPT3Dot5Turbo
+	}
 	client := openai.NewClient(apiKey)
 	resp, err := client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
-			Model: openai.GPT3Dot5Turbo,
+			Model: model,
 			Messages: []openai.ChatCompletionMessage{
 				{
 					Role:    openai.ChatMessageRoleUser,

@@ -45,6 +45,7 @@ func InitConfig() {
 		viper.AddConfigPath(configHome)
 		viper.SetConfigType(configType)
 		viper.SetConfigName(configName)
+		viper.SetDefault("enable_gpt_4", "false")
 		configPath := filepath.Join(configHome, configName+"."+configType)
 
 
