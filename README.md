@@ -10,6 +10,13 @@ Ghost is an experimental CLI that intelligently scaffolds a GitHub Action workfl
 
 If you have access to GPT-4, you can configure it as the model you use via `ghost config set ENABLE_GPT_4 true`.
 
+## Installation
+You can install the appropriate binary for your operating system by visiting the [Releases page](https://github.com/savannahostrowski/ghost/releases).
+
+## Contributing
+Contributions are welcome! To get started, check out the [contributing guidelines](CONTRIBUTING.md).
+
+## Libraries
 Ghost uses:
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea)
 - [Bubbles](https://github.com/charmbracelet/bubbles)
@@ -17,9 +24,3 @@ Ghost uses:
 - [Log](https://github.com/charmbracelet/log)
 - [Cobra](https://github.com/spf13/cobra)
 - [Viper](https://github.com/spf13/viper)
-
-## Installation
-You can install the appropriate binary for your operating system by visiting the [Releases page](https://github.com/savannahostrowski/ghost/releases).
-
-## Contributing
-Contributions are welcome! To get started, check out the [contributing guidelines](CONTRIBUTING.md).
