@@ -8,6 +8,8 @@ Ghost is an experimental CLI that intelligently scaffolds a GitHub Action workfl
 2. Run `ghost config set OPENAI_API_KEY <your key here>` with your key from step 1
 3. Run `ghost run` to start project analysis of the current working directory.
 
+If you have access to GPT-4, you can configure it as the model you use via `ghost config set ENABLE_GPT_4 true`.
+
 Ghost uses:
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea)
 - [Bubbles](https://github.com/charmbracelet/bubbles)
