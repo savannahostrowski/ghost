@@ -13,17 +13,17 @@ import (
 
 var (
 	cfgFile string
-  version string = "0.0.9"
+	Version string
 	rootCmd = &cobra.Command{
 		Use:   "ghost",
 		Short: fmt.Sprintf("\n%v Ghost is an experimental CLI that intelligently scaffolds a GitHub Action workflow based on your local application stack and natural language, using OpenAI.", emoji.Ghost),
 	}
-  versionCmd = &cobra.Command{
-    Use:   "version",
-    Run:   func(cmd *cobra.Command, args []string) {
-      fmt.Printf("Ghost Version: %v", version)
-    },
-  }
+	versionCmd = &cobra.Command{
+		Use: "version",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("Ghost Version: %v", Version)
+		},
+	}
 )
 
 func Execute() error {
@@ -35,7 +35,7 @@ func init() {
 
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	rootCmd.AddCommand(runCmd, configCmd)
-  rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(versionCmd)
 }
 
 func InitConfig() {
@@ -52,7 +52,6 @@ func InitConfig() {
 		viper.SetConfigName(configName)
 		viper.SetDefault("enable_gpt_4", "false")
 		configPath := filepath.Join(configHome, configName+"."+configType)
-
 
 		if _, err := os.Stat(configPath); err == nil {
 			viper.AutomaticEnv()
