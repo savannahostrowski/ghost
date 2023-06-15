@@ -173,7 +173,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						GitHub Action, tell the user what their next steps should be in a comment`, m.detectedLanguages, m.desiredTasks.Value())
 						response, err := chatGPTRequest(prompt)
 						if err != nil {
-							// log.Error(err)
 							os.Exit(1)
 						}
 						return response

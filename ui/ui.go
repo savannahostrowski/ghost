@@ -2,12 +2,12 @@ package ui
 
 import "github.com/charmbracelet/lipgloss"
 
-
 const (
 	HotPink = lipgloss.Color("#ff69b7")
 	Purple  = lipgloss.Color("#bd93f9")
 	Red     = lipgloss.Color("#ff5555")
 	Grey    = lipgloss.Color("#44475a")
+	Green = lipgloss.Color("#04B575")
 )
 
 var (

@@ -40,6 +40,7 @@ var setCmd = &cobra.Command{
 			viper.Set("OPENAI_API_KEY", args[1])
 			viper.Set("ENABLE_GPT_4", enableGPT4)
 			viper.WriteConfig()
+			fmt.Println(string(emoji.CheckBoxWithCheck) + lipgloss.NewStyle().Foreground(ui.Green).Render("  Successfully set OPENAI_API_KEY config value"))
 			return nil
 		}
 
@@ -51,6 +52,7 @@ var setCmd = &cobra.Command{
 			viper.Set("OPENAI_API_KEY", apikey)
 			viper.Set("ENABLE_GPT_4", args[1])
 			viper.WriteConfig()
+			fmt.Println(string(emoji.CheckBoxWithCheck) + lipgloss.NewStyle().Foreground(ui.Green).Render("  Successfully set ENABLE_GPT_4 config value"))
 			return nil
 		}
 
