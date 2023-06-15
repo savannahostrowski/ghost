@@ -13,9 +13,17 @@ import (
 
 var (
 	cfgFile string
+	Version string
 	rootCmd = &cobra.Command{
 		Use:   "ghost",
 		Short: fmt.Sprintf("\n%v Ghost is an experimental CLI that intelligently scaffolds a GitHub Action workflow based on your local application stack and natural language, using OpenAI.", emoji.Ghost),
+	}
+	versionCmd = &cobra.Command{
+		Use: "version",
+		Short: "Prints the Ghost version"
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("Ghost Version: %v", Version)
+		},
 	}
 )
 
@@ -28,6 +36,7 @@ func init() {
 
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 	rootCmd.AddCommand(runCmd, configCmd)
+	rootCmd.AddCommand(versionCmd)
 }
 
 func InitConfig() {
