@@ -59,7 +59,6 @@ var setCmd = &cobra.Command{
 		return fmt.Errorf("invalid key: %s", args[0])
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-
 	},
 }
 
