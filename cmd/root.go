@@ -45,7 +45,6 @@ func InitConfig() {
 		viper.SetDefault("enable_gpt_4", "false")
 		configPath := filepath.Join(configHome, configName+"."+configType)
 
-
 		if _, err := os.Stat(configPath); err == nil {
 			viper.AutomaticEnv()
 		} else if errors.Is(err, os.ErrNotExist) {

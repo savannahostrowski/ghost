@@ -7,7 +7,7 @@ const (
 	Purple  = lipgloss.Color("#bd93f9")
 	Red     = lipgloss.Color("#ff5555")
 	Grey    = lipgloss.Color("#44475a")
-	Green = lipgloss.Color("#04B575")
+	Green   = lipgloss.Color("#04B575")
 )
 
 var (

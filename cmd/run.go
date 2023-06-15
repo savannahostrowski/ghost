@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/savannahostrowski/ghost/ui"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/savannahostrowski/ghost/ui"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
@@ -36,7 +36,6 @@ type model struct {
 	spinner               spinner.Model
 	viewport              viewport.Model
 }
-
 
 type View int64
 
