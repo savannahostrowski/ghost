@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/savannahostrowski/ghost/ui"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -36,22 +37,6 @@ type model struct {
 	viewport              viewport.Model
 }
 
-const (
-	hotPink = lipgloss.Color("#ff69b7")
-	purple  = lipgloss.Color("#bd93f9")
-	red     = lipgloss.Color("#ff5555")
-	grey    = lipgloss.Color("#44475a")
-)
-
-var (
-	gptResultStyle = lipgloss.NewStyle().Foreground(hotPink)
-	userInputStyle = lipgloss.NewStyle().Foreground(purple)
-	itemStyle      = lipgloss.NewStyle().PaddingLeft(2)
-	selectedStyle  = lipgloss.NewStyle().PaddingLeft(2).Foreground(purple)
-	errorStyle     = lipgloss.NewStyle().Foreground(red)
-	helpStyle      = lipgloss.NewStyle().Foreground(grey)
-	viewportStyle  = lipgloss.NewStyle().Foreground(hotPink)
-)
 
 type View int64
 
@@ -95,7 +80,7 @@ var runCmd = &cobra.Command{
 func initialModel() model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(hotPink)
+	s.Style = lipgloss.NewStyle().Foreground(ui.HotPink)
 
 	ti := textinput.New()
 	ti.Placeholder = "Enter some tasks"
@@ -108,7 +93,7 @@ func initialModel() model {
 	additionalInfo.Width = 300
 
 	vp := viewport.New(0, 0)
-	vp.Style = viewportStyle
+	vp.Style = ui.ViewportStyle
 	vp.YPosition = 0
 	vp.KeyMap.Up = key.NewBinding(key.WithKeys("w"))
 	vp.KeyMap.Down = key.NewBinding(key.WithKeys("s"))
@@ -265,7 +250,7 @@ func (m model) View() string {
 		}
 		return confirmationView(
 			m,
-			fmt.Sprintf("%v Ghost detected the following languages in your codebase: %v. Is this correct?\n", emoji.Ghost, gptResultStyle.Render(m.detectedLanguages)),
+			fmt.Sprintf("%v Ghost detected the following languages in your codebase: %v. Is this correct?\n", emoji.Ghost, ui.GptResultStyle.Render(m.detectedLanguages)),
 			"Yes",
 			"No - I want to correct the language(s) Ghost detected",
 			false,
@@ -348,25 +333,25 @@ func chatGPTRequest(prompt string) (response gptResponse, err error) {
 func textInputView(m model, title string, input textinput.Model) string {
 	return fmt.Sprintf(
 		title+"\n\n%s\n\n%s",
-		userInputStyle.Render(input.View()),
-		"(Press "+userInputStyle.Render("Enter")+" to continue)",
+		ui.UserInputStyle.Render(input.View()),
+		"(Press "+ui.UserInputStyle.Render("Enter")+" to continue)",
 	) + "\n"
 }
 
 func confirmationView(m model, title string, yesText string, noText string, isGHAOutput bool, content string) string {
 	var yes, no string
 	if m.choice == "yes" {
-		yes = selectedStyle.Render("> " + yesText)
-		no = itemStyle.Render(noText)
+		yes = ui.SelectedStyle.Render("> " + yesText)
+		no = ui.ItemStyle.Render(noText)
 	} else {
-		yes = itemStyle.Render(yesText)
-		no = selectedStyle.Render("> " + noText)
+		yes = ui.ItemStyle.Render(yesText)
+		no = ui.SelectedStyle.Render("> " + noText)
 	}
 
 	if isGHAOutput {
 		return title +
 			m.viewport.View() + "\n" +
-			helpStyle.Render("   ↑w/↓s: Scroll (or use your mouse) \n") + "\n" +
+			ui.HelpStyle.Render("   ↑w/↓s: Scroll (or use your mouse) \n") + "\n" +
 			fmt.Sprintf("%v Ghost created this GitHub Action. How does it look?", emoji.Ghost) + "\n" + yes + "\n" + no
 	} else {
 		return title + yes + "\n" + no
@@ -374,7 +359,7 @@ func confirmationView(m model, title string, yesText string, noText string, isGH
 }
 
 func errorView(m model) string {
-	return errorStyle.Render(m.err.Error())
+	return ui.ErrorStyle.Render(m.err.Error())
 }
 
 func getFilesInCurrentDirAndSubDirs() []string {

@@ -4,6 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/enescakir/emoji"
+	"github.com/savannahostrowski/ghost/ui"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -73,9 +77,14 @@ var getCmd = &cobra.Command{
 		if err != nil {
 			panic(fmt.Errorf("cannot load config file: %w", err))
 		}
-		fmt.Println("OPENAI_API_KEY=", config.OpenAIAPIKey)
-		fmt.Println("ENABLE_GPT_4=", config.EnableGPT4)
 
+		var style = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color(ui.HotPink))
+
+		fmt.Printf("Your Ghost %v configuration file is located at %v\n\n"+
+			"OPENAI_API_KEY: %v\n"+
+			"ENABLE_GPT_4: %v\n", emoji.Ghost, style.Render(path), style.Render(config.OpenAIAPIKey), style.Render(config.EnableGPT4))
 	},
 }
 
