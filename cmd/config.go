@@ -4,6 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/enescakir/emoji"
+	"github.com/savannahostrowski/ghost/ui"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -36,6 +40,7 @@ var setCmd = &cobra.Command{
 			viper.Set("OPENAI_API_KEY", args[1])
 			viper.Set("ENABLE_GPT_4", enableGPT4)
 			viper.WriteConfig()
+			fmt.Println(string(emoji.CheckBoxWithCheck) + lipgloss.NewStyle().Foreground(ui.Green).Render("  Successfully set OPENAI_API_KEY config value"))
 			return nil
 		}
 
@@ -47,13 +52,13 @@ var setCmd = &cobra.Command{
 			viper.Set("OPENAI_API_KEY", apikey)
 			viper.Set("ENABLE_GPT_4", args[1])
 			viper.WriteConfig()
+			fmt.Println(string(emoji.CheckBoxWithCheck) + lipgloss.NewStyle().Foreground(ui.Green).Render("  Successfully set ENABLE_GPT_4 config value"))
 			return nil
 		}
 
 		return fmt.Errorf("invalid key: %s", args[0])
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-
 	},
 }
 
@@ -73,9 +78,14 @@ var getCmd = &cobra.Command{
 		if err != nil {
 			panic(fmt.Errorf("cannot load config file: %w", err))
 		}
-		fmt.Println("OPENAI_API_KEY=", config.OpenAIAPIKey)
-		fmt.Println("ENABLE_GPT_4=", config.EnableGPT4)
 
+		var style = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color(ui.HotPink))
+
+		fmt.Printf("Your Ghost %v configuration file is located at %v\n\n"+
+			"OPENAI_API_KEY: %v\n"+
+			"ENABLE_GPT_4: %v\n", emoji.Ghost, style.Render(path), style.Render(config.OpenAIAPIKey), style.Render(config.EnableGPT4))
 	},
 }
 
