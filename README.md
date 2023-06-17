@@ -19,6 +19,7 @@ You can install the appropriate binary for your operating system by visiting the
 Contributions are welcome! To get started, check out the [contributing guidelines](CONTRIBUTING.md).
 
 ## Contributors
+A big thank you to these wonderful humans for their contributions!
 
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
 <!-- prettier-ignore-start -->
