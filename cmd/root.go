@@ -20,9 +20,10 @@ var (
 	}
 	versionCmd = &cobra.Command{
 		Use: "version",
-		Short: "Prints the Ghost version"
+		Short: "Prints the Ghost version",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("Ghost Version: %v", Version)
+			version := fmt.Sprintf("Ghost version: %v", Version)
+			fmt.Println(version)
 		},
 	}
 )
