@@ -1,4 +1,6 @@
 # Ghost 👻
+[![All Contributors](https://img.shields.io/github/all-contributors/savannahostrowski/ghost?color=bd93f9&style=flat-square)](#contributors)
+
 Ghost is an experimental CLI that intelligently scaffolds a GitHub Action workflow based on your local application stack and natural language, using OpenAI.
 
 ![A screenshot of the Ghost UX flow](ghost.gif)
@@ -15,6 +17,17 @@ You can install the appropriate binary for your operating system by visiting the
 
 ## Contributing
 Contributions are welcome! To get started, check out the [contributing guidelines](CONTRIBUTING.md).
+
+### Contributors
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+
+<!-- markdownlint-restore -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
 
 ## Libraries
 Ghost uses:
