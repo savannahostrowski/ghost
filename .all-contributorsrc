@@ -12,15 +12,5 @@
   "contributorsSortAlphabetically": false,
   "linkToUsage": true,
   "skipCi": true,
-  "contributors": [
-    {
-      "login": "Galzzly",
-      "name": "Galzzly",
-      "avatar_url": "https://avatars.githubusercontent.com/u/5075858?v=4",
-      "profile": "https://github.com/Galzzly",
-      "contributions": [
-        "code"
-      ]
-    }
-  ]
+  "contributors": []
 }
