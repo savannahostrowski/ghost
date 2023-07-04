@@ -5,6 +5,8 @@ Ghost is an experimental CLI that intelligently scaffolds a GitHub Action workfl
 
 ![A screenshot of the Ghost UX flow](ghost.gif)
 
+> Want to use this in VS Code? Check out the TypeScript port of Ghost as an extension: https://github.com/savannahostrowski/ghost-vscode
+
 ## Getting started
 1. First, you'll need to set up an [OpenAI API key](https://platform.openai.com/account/api-keys).
 2. Run `ghost config set OPENAI_API_KEY <your key here>` with your key from step 1
