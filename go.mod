@@ -3,8 +3,8 @@ module github.com/savannahostrowski/ghost
 go 1.20
 
 require (
+	github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai v0.1.1
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.6.1
-	github.com/Azure/azure-sdk-for-go/sdk/cognitiveservices/azopenai v0.1.0
 	github.com/enescakir/emoji v1.0.0
 	github.com/spf13/viper v1.16.0
 )
