@@ -15,10 +15,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/savannahostrowski/ghost/ui"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/ai/azopenai"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
 	"github.com/enescakir/emoji"
-	"github.com/sashabaranov/go-openai"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -299,23 +300,32 @@ func chatGPTRequest(prompt string) (response gptResponse, err error) {
 	enableGPT4, _ := strconv.ParseBool(viper.GetString("enable_gpt_4"))
 	var model string
 	if enableGPT4 {
-		model = openai.GPT4
+		model = "gpt-4"
 	} else {
-		model = openai.GPT3Dot5Turbo
+		model = "gpt-3.5-turbo"
 	}
-	client := openai.NewClient(apiKey)
-	resp, err := client.CreateChatCompletion(
-		context.Background(),
-		openai.ChatCompletionRequest{
-			Model: model,
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleUser,
-					Content: prompt,
-				},
+
+	keyCred, err := azopenai.NewKeyCredential(apiKey)
+
+	if err != nil {
+		return "KeyCredential error", err
+	}
+
+	client, err := azopenai.NewClientForOpenAI("https://api.openai.com/v1", keyCred, nil)
+
+	if err != nil {
+		return "Create client error", err
+	}
+
+	resp, err := client.GetChatCompletions(context.Background(), azopenai.ChatCompletionsOptions{
+		DeploymentID: model,
+		Messages: []azopenai.ChatMessage{
+			{
+				Role:    to.Ptr(azopenai.ChatRoleUser),
+				Content: &prompt,
 			},
 		},
-	)
+	}, nil)
 
 	if err != nil {
 		return "ChatCompletion error", err
@@ -324,7 +334,7 @@ func chatGPTRequest(prompt string) (response gptResponse, err error) {
 	if len(resp.Choices) == 0 {
 		return "No languages detected!", err
 	} else {
-		return gptResponse(resp.Choices[0].Message.Content), nil
+		return gptResponse(*resp.Choices[0].Message.Content), nil
 	}
 }
 
