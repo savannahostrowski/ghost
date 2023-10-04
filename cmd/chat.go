@@ -35,8 +35,7 @@ func MaxContentLengthExceeded(prompt string) bool {
 
 	switch model {
 	case openai.GPT3Dot5Turbo, openai.GPT3Ada:
-		// maxTokens = 4096
-		maxTokens = 90
+		maxTokens = 4096
 	case openai.GPT4:
 		maxTokens = 8192
 	default:
