@@ -209,7 +209,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			if MaxContentLengthExceeded(prompt) {
-				m.err = fmt.Errorf("the prompt is too long. Please shorten the prompt and try again")
+				m.err = fmt.Errorf("The prompt is too long. Please shorten the prompt and try again")
 				m.currentView = Error
 				return m, nil
 			}
