@@ -199,18 +199,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.files = getFilesInCurrentDirAndSubDirs()
 			}
 
-			m.currentView = LoadingDetectedLanguages
-			cmds = append(cmds, func() tea.Msg {
-				var prompt string
-				if m.additionalProjectInfo.Value() == "" {
-					prompt = fmt.Sprintf("Use the following files to tell me what languages are being used in this project. Return a comma-separated list with just the language names: %v. ", m.files)
-				} else {
-					prompt = fmt.Sprintf(`You said this project uses the following languages %v (detected from the following files: %v). 
+			var prompt string
+			if m.additionalProjectInfo.Value() == "" {
+				prompt = fmt.Sprintf("Use the following files to tell me what languages are being used in this project. Return a comma-separated list with just the language names: %v. ", m.files)
+			} else {
+				prompt = fmt.Sprintf(`You said this project uses the following languages %v (detected from the following files: %v). 
 			According to the user, this is not correct. Here's some additional info from the user: %v.
 			Return a comma-separated list of the languages used by this project.`, m.files, m.detectedLanguages, m.additionalProjectInfo.Value())
-				}
-				response, err := chatGPTRequest(prompt)
+			}
 
+			if MaxContentLengthExceeded(prompt) {
+				m.err = fmt.Errorf("The prompt is too long. Please shorten the prompt and try again")
+				m.currentView = Error
+				return m, nil
+			}
+			m.currentView = LoadingDetectedLanguages
+
+			cmds = append(cmds, func() tea.Msg {
+				response, err := chatGPTRequest(prompt)
 				if err != nil {
 					log.Error(err)
 					os.Exit(1)
@@ -316,7 +322,6 @@ func chatGPTRequest(prompt string) (response gptResponse, err error) {
 			},
 		},
 	)
-
 	if err != nil {
 		return "ChatCompletion error", err
 	}
@@ -382,7 +387,7 @@ func getFilesInCurrentDirAndSubDirs() []string {
 func writeGHAWorkflowToFile(gha string) {
 	_, err := os.Stat(".github/workflows")
 	if os.IsNotExist(err) {
-		errDir := os.MkdirAll(".github/workflows", 0755)
+		errDir := os.MkdirAll(".github/workflows", 0o755)
 		if errDir != nil {
 			log.Error("Error creating .github/workflows directory")
 			return
@@ -396,5 +401,5 @@ func writeGHAWorkflowToFile(gha string) {
 		return
 	}
 
-	os.WriteFile(filename, []byte(gha), 0644)
+	os.WriteFile(filename, []byte(gha), 0o644)
 }
