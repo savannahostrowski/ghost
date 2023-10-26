@@ -30,6 +30,7 @@ A big thank you to these wonderful humans for their contributions!
   <tbody>
     <tr>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/Galzzly"><img src="https://avatars.githubusercontent.com/u/5075858?v=4?s=100" width="100px;" alt="Liam G"/><br /><sub><b>Liam G</b></sub></a><br /><a href="https://github.com/savannahostrowski/ghost/commits?author=Galzzly" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/tomekz"><img src="https://avatars.githubusercontent.com/u/2116354?v=4?s=100" width="100px;" alt="Tomasz Zadrożny"/><br /><sub><b>Tomasz Zadrożny</b></sub></a><br /><a href="https://github.com/savannahostrowski/ghost/commits?author=tomekz" title="Code">💻</a></td>
     </tr>
   </tbody>
   <tfoot>
